@@ -1,0 +1,404 @@
+/**
+ * style.css
+ * Palette Verde Scuro/Blu - Adattata per Piano Tutor Extream Edition
+ */
+
+/* Reset base e font globale */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.6;
+    margin: 0;
+    background-color: #388E3C; /* Verde Scuro Muted (ex: #415A77) */
+    color: #E0E1DD; /* Testo Bianco Sporco (mantenuto) */
+    font-size: 16px;
+}
+
+/* Header dell'applicazione per contenere titolo e note */
+.app-header {
+    background-color: #0F200F; /* Verde Molto Scuro/Quasi Nero (ex: #0D1B2A) */
+    padding: 40px 20px 50px 20px;
+    text-align: center;
+    position: relative;
+    min-height: 180px;
+    overflow: hidden;
+    border-bottom: 3px solid #A7C080; /* Bordo Verde-Grigio (ex: #778DA9) */
+    margin-bottom: 20px;
+}
+
+/* Note Svolazzanti */
+.floating-note
+{
+    position: absolute;
+    font-size: 28px;
+    color: #E0E1DD; /* Bianco Sporco (mantenuto) */
+    opacity: 0.8;
+    user-select: none;
+    animation: float 12s ease-in-out infinite alternate;
+
+    /* === EFFETTO GLOW BLU PER LE NOTE (per coerenza con titolo) === */
+    text-shadow:
+        0 0 4px #4FC3F7,  /* Glow blu chiaro (ex: #85C1E9) */
+        0 0 8px #81D4FA; /* Glow blu medio (ex: #5DADE2) */
+}
+/* Posizionamento e stili individuali per le note (mantenuti) */
+.floating-note.note-1 { top: 15%; left: 10%; animation-delay: 0s; font-size: 30px; transform: rotate(-10deg); }
+.floating-note.note-2 { top: 30%; left: 85%; animation-delay: -2.5s; font-size: 26px; transform: rotate(15deg); }
+.floating-note.note-3 { top: 5%; left: 35%; animation-delay: -5s; font-size: 32px; transform: rotate(5deg); }
+.floating-note.note-5 { top: 40%; left: 20%; animation-delay: -3s; font-size: 28px; transform: rotate(20deg); }
+.floating-note.note-6 { top: 10%; left: 70%; animation-delay: -1.5s; font-size: 24px; transform: rotate(-15deg); }
+.floating-note.note-7 { top: 50%; left: 50%; animation-delay: -6s; font-size: 30px; transform: rotate(10deg); }
+.floating-note.note-8 { top: 25%; left: 5%; animation-delay: -8s; font-size: 28px; transform: rotate(-5deg); }
+.floating-note.note-9 { top: 5%; left: 90%; animation-delay: -10s; font-size: 26px; transform: rotate(25deg); }
+
+@keyframes float { /* Animazione mantenuta */
+    0% { transform: translateY(0px) translateX(0px) rotate(-5deg); opacity: 0.5; }
+    25% { transform: translateY(-12px) translateX(6px) rotate(0deg); opacity: 0.7; }
+    50% { transform: translateY(-6px) translateX(-6px) rotate(8deg); opacity: 0.6; }
+    75% { transform: translateY(6px) translateX(6px) rotate(-3deg); opacity: 0.7; }
+    100% { transform: translateY(0px) translateX(0px) rotate(-5deg); opacity: 0.5; }
+}
+
+
+/* Titolo principale con riquadro */
+h1 {
+    color: #03A9F4; /* Testo Blu Vibrante (ex: #E0E1DD) */
+    margin: 0 auto;
+    font-weight: bold;
+    font-size: 2.5em;
+    text-shadow:
+        0 0 2px #1F381F,  /* Contorno sottile verde scuro (ex: #1B263B) */
+        0 0 8px #4FC3F7,  /* Glow blu chiaro (ex: #85C1E9) */
+        0 0 12px #81D4FA, /* Glow blu medio (ex: #5DADE2) */
+        0 0 18px #388E3C; /* Glow verde scuro diffuso (ex: #415A77) */
+
+    border: 3px solid #DAA520; /* Bordo Oro Muted (ex: #C0C0C0 Argento) */
+    padding: 12px 25px;
+    border-radius: 10px;
+    display: inline-block;
+    background-color: rgba(31, 56, 31, 0.6); /* Sfondo verde scuro semi-trasparente (ex: rgba(27, 38, 59, 0.6)) */
+    box-shadow: 0 0 12px rgba(218, 165, 32, 0.6); /* Ombra basata sul colore oro (ex: rgba(192, 192, 192, 0.6)) */
+    position: relative;
+    z-index: 10;
+}
+
+/* Contenitori per controlli (selettori e slider) */
+.controls {
+    margin: 20px;
+    margin-bottom: 10px;
+    padding: 15px 20px;
+    background-color: #1F381F; /* Verde Scuro Secondario (ex: #1B263B) */
+    border: 1px solid #A7C080; /* Bordo Verde-Grigio (ex: #778DA9) */
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Area di stato MODIFICATA */
+.status-area {
+    margin: 10px 20px 10px 20px;
+    padding: 15px 20px;
+    background-color: #1F381F; /* Verde Scuro Secondario */
+    border: 1px solid #A7C080; /* Bordo Verde-Grigio */
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    display: flex; /* USA FLEXBOX PER COLONNE */
+    justify-content: space-between; /* Spazio tra le colonne */
+    gap: 15px; /* Spazio tra le colonne */
+}
+
+.status-column {
+    flex: 1; /* Ogni colonna prende spazio uguale */
+    padding: 10px;
+    border: 1px dashed #5a8c5a; /* Bordo leggero per separare visivamente, opzionale */
+    border-radius: 5px;
+    min-width: 200px; /* Larghezza minima per colonna */
+}
+.status-column h4 {
+    color: #DAA520; /* Oro per i titoli delle sezioni statistiche */
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+
+.status-area p {
+    margin: 5px 0;
+    text-align: left; /* Allinea il testo a sinistra dentro le colonne */
+}
+
+.status-area span {
+    font-weight: bold;
+    color: #8BC34A; /* Verde Chiaro Vibrante */
+}
+
+/* Stili specifici per i contenitori delle nuove statistiche */
+.exercise-stats-container, .errors-detail-container {
+    background-color: rgba(15, 32, 15, 0.3); /* Sfondo leggermente più scuro per distinzione */
+}
+
+.errors-list {
+    max-height: 120px; /* Altezza massima per la lista errori */
+    overflow-y: auto;  /* Scroll verticale se il contenuto eccede */
+    padding: 5px;
+    border: 1px solid #4a6b4a;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.errors-list p { /* Stile per il messaggio di default */
+    font-style: italic;
+    color: #a0a0a0;
+    text-align: center;
+}
+
+.errors-list ul {
+    list-style-type: none; /* Rimuove i bullet points di default */
+    padding-left: 0;
+}
+
+.errors-list li {
+    padding: 3px 0;
+    border-bottom: 1px dotted #5a8c5a;
+}
+.errors-list li:last-child {
+    border-bottom: none;
+}
+.errors-list strong { /* Per evidenziare la ripetizione o parti importanti */
+    color: #DAA520; /* Oro per evidenziare */
+}
+.errors-list small { /* Per dettagli come il timestamp */
+    color: #b0b0b0; /* Grigio chiaro per dettagli meno importanti */
+}
+
+
+/* Nuovo stile per il contenitore dei pulsanti di controllo */
+.control-buttons {
+    margin: 10px 20px 20px 20px;
+    text-align: center;
+}
+
+/* Stili per i pulsanti nel contenitore control-buttons (colori funzionali mantenuti) */
+.control-buttons button {
+    margin: 0 10px;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 80px;
+    /* Bordi basati sui colori funzionali, mantenuti per chiarezza UI */
+}
+
+#start-button {
+    background-color: #28a745; /* Verde */
+    color: white;
+    border: 1px solid #218838;
+}
+
+#start-button:hover:not(:disabled) {
+    background-color: #218838;
+}
+
+#start-button:disabled {
+    background-color: #6c757d; /* Grigio */
+    border-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#stop-button {
+    background-color: #dc3545; /* Rosso */
+    color: white;
+    border: 1px solid #c82333;
+}
+
+#stop-button:hover:not(:disabled) {
+    background-color: #c82333;
+}
+
+#stop-button:disabled {
+    background-color: #6c757d; /* Grigio */
+    border-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#pause-button {
+    background-color: #ffc107; /* Giallo/Arancione */
+    color: #212529; /* Testo scuro */
+    border: 1px solid #d39e00;
+}
+
+#pause-button:hover:not(:disabled) {
+    background-color: #d39e00;
+    color: white;
+}
+
+#pause-button:disabled {
+    background-color: #6c757d; /* Grigio */
+    border-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#theory-button {
+    background-color: #17a2b8; /* Blu ciano */
+    color: white;
+    border: 1px solid #138496;
+}
+
+#theory-button:hover {
+    background-color: #138496;
+}
+
+
+/* Elementi dentro i controls (selettori e slider) */
+.controls label,
+.controls select,
+.controls .scroll-speed-control {
+    margin: 5px 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    vertical-align: middle;
+    font-size: 0.95em;
+}
+
+/* Stili specifici per il controllo velocità */
+.scroll-speed-control {
+    display: inline-block;
+    align-items: center;
+    background-color: #0F200F; /* Verde Molto Scuro (ex: #0D1B2A) */
+    border: 1px solid #A7C080; /* Bordo Verde-Grigio (ex: #778DA9) */
+    border-radius: 4px;
+    padding: 5px 10px;
+}
+
+.scroll-speed-control label {
+    margin-right: 10px;
+    font-weight: normal;
+    color: #E0E1DD; /* Mantenuto bianco sporco */
+}
+
+.scroll-speed-control input[type="range"] {
+    vertical-align: middle;
+    margin: 0 5px;
+    cursor: pointer;
+}
+
+.scroll-speed-control span {
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+    color: #E0E1DD; /* Mantenuto bianco sporco */
+}
+
+
+/* Area dello spartito VexFlow */
+#score {
+    margin: 20px;
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #1F381F; /* Bordo Verde Scuro (ex: #1B263B) */
+    min-height: 320px;
+    max-height: 500px;
+    background-color: #E0E1DD; /* Sfondo base dell'area spartito (mantenuto) */
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    overflow-x: auto;
+    overflow-y: auto;
+    display: block;
+    position: relative;
+
+    /* === LINEE DI BATTUTA CSS === */
+    background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 79px,
+        #CCCCCC 79px,      /* Grigio chiaro (mantenuto) */
+        #CCCCCC 80px
+    );
+}
+
+#score svg {
+    display: inline-block;
+    background-color: transparent;
+    position: relative;
+    z-index: 1;
+}
+
+/* Stili VexFlow */
+.vf-annotation text {
+    fill: #1F381F; /* Verde Scuro Secondario (ex: #1B263B) */
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+/* Media Query per schermi più piccoli (colori adattati) */
+@media (max-width: 768px) {
+    .app-header { padding: 20px 15px 30px 15px; min-height: 150px; border-bottom-color: #A7C080; }
+    .floating-note { font-size: 22px; opacity: 0.4;}
+    h1 { font-size: 1.8em; padding: 10px 15px; border-color: #DAA520; background-color: rgba(31, 56, 31, 0.6); box-shadow: 0 0 8px rgba(218, 165, 32, 0.4); }
+    
+    /* Modifiche per .controls, .status-area, .control-buttons in media query */
+    .controls { padding: 10px; margin-left: 10px; margin-right: 10px; background-color: #1F381F; border-color: #A7C080; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+    .control-buttons { padding: 10px; margin-left: 10px; margin-right: 10px; }
+
+    .controls label, .controls select { margin: 4px 6px; padding: 7px 10px; font-size: 0.9em; }
+    .controls select { min-width: 150px; }
+    
+    /* Modifiche per .status-area in media query */
+    .status-area {
+        padding: 10px; margin-left: 10px; margin-right: 10px;
+        background-color: #1F381F; border-color: #A7C080;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        flex-direction: column; /* Colonne in verticale su schermi piccoli */
+        align-items: stretch;
+    }
+    .status-column {
+        min-width: unset; /* Rimuovi larghezza minima */
+        margin-bottom: 10px;
+    }
+    .status-column:last-child {
+        margin-bottom: 0;
+    }
+    .status-area p { margin: 5px 10px; font-size: 0.9em;} /* Potrebbe richiedere aggiustamenti */
+    .status-area span { color: #8BC34A; } /* Mantenuto, ma considera se la dimensione del font necessita di modifiche */
+
+    .errors-list {
+        max-height: 100px;
+    }
+
+    #score { min-height: 280px; padding: 15px; margin-left: 10px; margin-right: 10px; border-color: #1F381F; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+    .control-buttons button { min-width: 60px; padding: 8px 15px; font-size: 1em; }
+    .scroll-speed-control { background-color: #0F200F; border-color: #A7C080; }
+     .vf-annotation text { fill: #1F381F; }
+}
+
+@media (max-width: 480px) {
+    .app-header { padding: 15px 10px 25px 10px; min-height: 120px; }
+    .floating-note { font-size: 20px; opacity: 0.3; }
+    h1 { font-size: 1.6em; padding: 8px 12px; }
+    
+    /* Modifiche per .controls in media query */
+    .controls { display: flex; flex-direction: column; align-items: stretch; }
+    .controls label, .controls select, .controls .scroll-speed-control { width: 90%; margin: 5px auto; }
+    .controls select { /* Aggiustamenti specifici se necessario */ }
+
+    /* Modifiche per .status-area in media query */
+    .status-area {
+        /* flex-direction è già column da 768px */
+        align-items: center; /* Centra le colonne ora che sono una sopra l'altra */
+    }
+    .status-column {
+         width: 90%; /* Adatta la larghezza delle colonne */
+    }
+    .status-area p { text-align: center; width: 100%; } /* Ora il testo può essere centrato nella colonna */
+    .status-area span { text-align: center; display: block; margin-left: 0; margin-top: 3px; }
+
+
+    .control-buttons { display: flex; flex-direction: column; align-items: stretch; }
+    .control-buttons button { width: 90%; margin: 5px auto; }
+}
