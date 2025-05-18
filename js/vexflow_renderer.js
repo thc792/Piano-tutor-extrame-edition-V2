@@ -3,8 +3,8 @@
  * Renderer per esercizi musicali usando VexFlow.
  * **VERSIONE FINALE: Calcola startTick per ogni nota e restituisce posizioni verticali dei sistemi.**
  *
- * Piano Future
- * Copyright (c) 2025 Lorenzetti Giuseppe
+ * Piano 
+ * Copyright (c) 2023-2024 Lorenzetti Giuseppe
  *
  * Questo codice sorgente è rilasciato sotto la licenza MIT.
  * Vedi il file LICENSE nel repository GitHub per i dettagli completi.

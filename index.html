@@ -3,115 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Piano tutor Extream edition</title>
+    <title>Piano Tutor Extrame Edition V2</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Importante: Carica VexFlow -->
-    <script src="https://unpkg.com/vexflow@4.2.3/build/cjs/vexflow.js"></script>
+    <!-- VexFlow (locale) -->
+    <script src="js/vexflow.js"></script>
 </head>
 <body>
     <header class="app-header">
-        <span class="floating-note note-1">♩</span>
+        <h1>Piano Tutor Extrame V2</h1>
+        <!-- Note Svolazzanti -->
+        <span class="floating-note note-1">♫</span>
         <span class="floating-note note-2">♪</span>
-        <span class="floating-note note-3">♫</span>
-        <span class="floating-note note-5">♩</span>
-        <span class="floating-note note-6">♪</span>
-        <span class="floating-note note-7">♫</span>
-        <span class="floating-note note-8">♩</span>
-        <span class="floating-note note-9">♪</span>
-
-        <h1>Piano tutor Extream edition</h1>
+        <span class="floating-note note-3">♩</span>
+        <span class="floating-note note-5">♬</span>
+        <span class="floating-note note-6">♭</span>
+        <span class="floating-note note-7">♯</span>
+        <span class="floating-note note-8">♮</span>
+        <span class="floating-note note-9">𝄞</span>
     </header>
 
     <div class="controls">
-        <!-- Selettore Categoria Esercizi -->
         <label for="category-select">Categoria:</label>
         <select id="category-select">
             <option value="">-- Seleziona Categoria --</option>
-            <!-- Popolato da JS -->
         </select>
 
-        <!-- Selettore Esercizio Specifico -->
         <label for="exercise-select">Esercizio:</label>
         <select id="exercise-select" disabled>
-            <option value="">-- Prima seleziona una categoria --</option>
+            <option value="">-- Seleziona Esercizio --</option>
         </select>
 
-        <!-- CONTROLLO VELOCITÀ SCROLLING -->
         <div class="scroll-speed-control">
-            <label for="scroll-speed">Velocità Esercizio:</label>
+            <label for="scroll-speed">Velocità Scroll:</label>
             <input type="range" id="scroll-speed" min="1" max="10" value="1">
             <span id="scroll-speed-value">1</span>
         </div>
-        <!-- *************************************** -->
     </div>
+
+    <!-- SEZIONE METRONOMO -->
+    <div class="metronome-controls controls">
+        <label for="bpm-input">BPM:</label>
+        <input type="number" id="bpm-input" value="100" min="30" max="240" step="1">
+        <button id="metronome-toggle-button">Avvia Metronomo</button>
+        <div id="metronome-visual-indicator" class="metronome-indicator-off"></div>
+        <label for="metronome-auto-start" style="margin-left: 15px; font-size: 0.9em;">
+            <input type="checkbox" id="metronome-auto-start"> Avvia con esercizio
+        </label>
+    </div>
+    <!-- FINE SEZIONE METRONOMO -->
 
     <div class="status-area">
         <div class="status-column">
-            <p>Stato MIDI: <span id="midi-status">Inizializzazione...</span></p>
-            <p>Successo: <span id="success-rate">-- %</span></p>
-            <p>Info: <span id="expected-note">--</span></p>
-            <p>Nota Suonata: <span id="played-note">--</span></p>
+            <h4>Stato Esercizio</h4>
+            <p>MIDI: <span id="midi-status">Inizializzazione...</span></p>
+            <p>Atteso: <span id="expected-note">--</span></p>
+            <p>Suonato: <span id="played-note">--</span></p>
+            <p>Progresso: <span id="success-rate">-- %</span></p>
         </div>
         <div class="status-column exercise-stats-container">
-            <h4>Riepilogo Esercizio:</h4>
-            <p>Tempo Totale: <span id="summary-total-time">--</span></p>
+            <h4>Statistiche Esercizio Corrente</h4>
+            <p>Tempo Totale Attivo: <span id="summary-total-time">--</span></p>
             <p>Errori Totali: <span id="summary-total-errors">--</span></p>
-            <p>Tempo Medio/Rip.: <span id="summary-avg-rep-time">--</span></p>
+            <p>Tempo Medio Ripetizione: <span id="summary-avg-rep-time">--</span></p>
         </div>
         <div class="status-column errors-detail-container">
-            <h4>Dettaglio Errori:</h4>
+            <h4>Dettaglio Errori</h4>
             <div id="summary-errors-list" class="errors-list">
-                <p>Nessun errore o esercizio non completato.</p>
+                <p>Nessun esercizio completato.</p>
             </div>
         </div>
     </div>
 
-    <!-- Contenitore per i pulsanti di controllo -->
     <div class="control-buttons">
         <button id="start-button" disabled>Start</button>
         <button id="pause-button" disabled>Pause</button>
         <button id="stop-button" disabled>Stop</button>
         <button id="theory-button">Teoria</button>
-        <!-- Pulsante Avanti Sistema (mantenuto ma disabilitato come prima) -->
-        <button id="next-system-button" disabled>Avanti Sistema</button>
     </div>
 
-
-    <!-- Area VexFlow -->
     <div id="score">
-        <p>Seleziona una categoria e un esercizio per iniziare.</p>
+        <p>Caricamento...</p>
     </div>
 
-    <!-- =============================================== -->
-    <!-- CARICA I FILE DEGLI ESERCIZI QUI               -->
-    <!-- (Elenco basato sull'immagine fornita)         -->
-    <!-- =============================================== -->
+    <!-- Script Esercizi (IMPORTANTE: prima di main.js) -->
+    <!-- Ordine specificato -->
     <script src="js/exercises/giri_armonici.js"></script>
     <script src="js/exercises/accordi_rivolti.js"></script>
     <script src="js/exercises/ritmica_avanzata.js"></script>
     <script src="js/exercises/scale.js"></script>
-     <script src="js/exercises/scale_ottave.js"></script>
+    <script src="js/exercises/scale_ottave.js"></script>
     <script src="js/exercises/accompagnamenti.js"></script>
     <script src="js/exercises/accordi_complessi.js"></script>
     <script src="js/exercises/arpeggi.js"></script>
-    <script src="js/exercises/indipendenza_mani.js"></script>
-    <script src="js/exercises/tecnica_coordinazione.js"></script>
-    <script src="js/exercises/contrappunto_base.js"></script>
+    <script src="js/exercises/indipendenza_mani.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/tecnica_coordinazione.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/contrappunto_base.js"></script> <!-- Nome ipotizzato, verifica -->
     <script src="js/exercises/charper_1.js"></script>
     <script src="js/exercises/charper_2.js"></script>
     <script src="js/exercises/charper_3.js"></script>
     <script src="js/exercises/czernyop599.js"></script>
     <script src="js/exercises/beyer_op101.js"></script>
     <script src="js/exercises/beyer101liv2.js"></script>
-    <script src="alfred_basic_inspired.js"></script>
-    
-    
-    
-    
-    <!-- =============================================== -->
-    <!-- CARICA IL MODULO PRINCIPALE                   -->
-    <!-- =============================================== -->
-    <script type="module" src="js/main.js"></script>
+    <script src="js/exercises/alfred_basic_inspired.js"></script> <!-- Assumendo sia in js/exercises/ -->
 
+    <!-- Altri file di esercizi non specificati nell'ordine, aggiunti a seguire -->
+    <script src="js/exercises/faber_inspired.js"></script>
+    <script src="js/exercises/licks_blues_ragtime.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/licks_jazz.js"></script>
+    <script src="js/exercises/teoria_riconoscimento.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/voicing_jazz_blues.js"></script>
+
+
+    <script>
+        // Raccogli tutti gli esercizi in un unico oggetto window.exerciseData
+        // ATTENZIONE: I nomi delle categorie (es. Giri_Armonici) e i nomi delle variabili
+        // (es. giriArmoniciExercises) sono IPOTIZZATI. Devi adattarli a come hai
+        // effettivamente organizzato e nominato i dati nei tuoi file JS.
+        // L'ordine delle chiavi qui determina l'ordine nel selettore delle categorie.
+        window.exerciseData = {
+            Giri_Armonici: typeof giriArmoniciExercises !== 'undefined' ? giriArmoniciExercises : [],
+            Accordi_Rivolti: typeof accordiRivoltiExercises !== 'undefined' ? accordiRivoltiExercises : [],
+            Ritmica_Avanzata: typeof ritmicaAvanzataExercises !== 'undefined' ? ritmicaAvanzataExercises : [],
+            Scale: typeof scaleExercises !== 'undefined' ? scaleExercises : [],
+            Scale_Ottave: typeof scaleOttaveExercises !== 'undefined' ? scaleOttaveExercises : [],
+            Accompagnamenti: typeof accompagnamentiExercises !== 'undefined' ? accompagnamentiExercises : [],
+            Accordi_Complessi: typeof accordiComplessiExercises !== 'undefined' ? accordiComplessiExercises : [],
+            Arpeggi: typeof arpeggiExercises !== 'undefined' ? arpeggiExercises : [],
+            Indipendenza_Mani: typeof indipendenzaManiExercises !== 'undefined' ? indipendenzaManiExercises : [],
+            Tecnica_Coordinazione: typeof tecnicaCoordinazioneExercises !== 'undefined' ? tecnicaCoordinazioneExercises : [],
+            Contrappunto_Base: typeof contrappuntoBaseExercises !== 'undefined' ? contrappuntoBaseExercises : [],
+            Charper_1: typeof charper1Exercises !== 'undefined' ? charper1Exercises : [],
+            Charper_2: typeof charper2Exercises !== 'undefined' ? charper2Exercises : [],
+            Charper_3: typeof charper3Exercises !== 'undefined' ? charper3Exercises : [],
+            Czerny_Op599: typeof czernyOp599Exercises !== 'undefined' ? czernyOp599Exercises : [],
+            Beyer_Op101: typeof beyerOp101Exercises !== 'undefined' ? beyerOp101Exercises : [],
+            Beyer_Op101_Liv2: typeof beyerOp101Liv2Exercises !== 'undefined' ? beyerOp101Liv2Exercises : [],
+            Alfred_Basic_Inspired: typeof alfredBasicInspiredExercises !== 'undefined' ? alfredBasicInspiredExercises : [],
+            // Categorie per gli esercizi aggiunti a seguire
+            Faber_Inspired: typeof faberInspiredExercises !== 'undefined' ? faberInspiredExercises : [],
+            Licks_Blues_Ragtime: typeof licksBluesRagtimeExercises !== 'undefined' ? licksBluesRagtimeExercises : [],
+            Licks_Jazz: typeof licksJazzExercises !== 'undefined' ? licksJazzExercises : [],
+            Teoria_Riconoscimento: typeof teoriaRiconoscimentoExercises !== 'undefined' ? teoriaRiconoscimentoExercises : [],
+            Voicing_Jazz_Blues: typeof voicingJazzBluesExercises !== 'undefined' ? voicingJazzBluesExercises : [],
+        };
+    </script>
+
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>

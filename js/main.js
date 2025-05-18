@@ -1,6 +1,6 @@
-
- /**
-
+/**
+ * main.js
+ * Logica principale per Piano Tutor Extrame Edition V2
  *
  * Piano Tutor Extrame Edition V2 (o il nome attuale del progetto)
  * Copyright (c) 2023-2024 Lorenzetti Giuseppe (aggiorna l'anno se necessario)
@@ -43,6 +43,12 @@ const summaryTotalErrorsSpan = document.getElementById('summary-total-errors');
 const summaryAvgRepTimeSpan = document.getElementById('summary-avg-rep-time');
 const summaryErrorsListDiv = document.getElementById('summary-errors-list');
 
+// --- Riferimenti DOM per Metronomo ---
+const bpmInput = document.getElementById('bpm-input');
+const metronomeToggleButton = document.getElementById('metronome-toggle-button');
+const metronomeVisualIndicator = document.getElementById('metronome-visual-indicator');
+const metronomeAutoStartCheckbox = document.getElementById('metronome-auto-start');
+
 
 // --- Stato Applicazione ---
 let allExercises = {};
@@ -54,7 +60,7 @@ let midiReady = false;
 let exerciseCompletionTimeout = null;
 
 // --- Stato Avanzamento Esercizio ---
-let totalNotesPerRepetition = 0; 
+let totalNotesPerRepetition = 0;
 let correctNotesThisRepetition = 0; // Conteggio StaveNotes VexFlow completate
 let currentRepetition = 1;
 const DEFAULT_TARGET_REPETITIONS = 5;
@@ -63,7 +69,7 @@ let targetRepetitions = DEFAULT_TARGET_REPETITIONS;
 // --- NUOVE STRUTTURE PER STATISTICHE ---
 let exerciseStats = {};
 let currentRepetitionData = {};
-let globalPauseStartTime = 0; 
+let globalPauseStartTime = 0;
 
 // --- Stato Scrolling ---
 let scrollInterval = null;
@@ -73,6 +79,149 @@ const SCROLL_PIXELS_PER_INTERVAL_BASE = 0.5;
 
 // --- URL Pagina Teoria ---
 const THEORY_PAGE_URL = "https://www.pianohitech.com/teoria-blues";
+
+// --- Stato Metronomo ---
+let audioContext = null;
+let metronomeBpm = 100;
+let isMetronomeRunning = false;
+let nextNoteTime = 0.0;         // Quando la prossima nota dovrebbe suonare (in secondi del AudioContext)
+const lookahead = 25.0;         // Quanto spesso svegliamo il scheduler (ms)
+const scheduleAheadTime = 0.1;  // Quanto in anticipo scheduliamo l'audio (s)
+let schedulerIntervalId = null;
+let metronomeAccentFrequency = 880; // Hz per il primo beat (A5)
+let metronomeTickFrequency = 660;   // Hz per gli altri beat (E5)
+let currentBeatInMeasure = 0;
+let beatsPerMeasure = 4; // Default a 4/4, potrebbe essere aggiornato dalla time signature dell'esercizio
+
+
+// --- INIZIALIZZAZIONE AUDIO CONTEXT (IMPORTANTE per iOS/Browser con autoplay bloccato) ---
+function initAudioContext() {
+    if (!audioContext) {
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log("AudioContext creato.");
+        } catch (e) {
+            console.error("Web Audio API non supportata.", e);
+            alert("Il tuo browser non supporta la Web Audio API, necessaria per il metronomo.");
+            if (metronomeToggleButton) metronomeToggleButton.disabled = true;
+            if (bpmInput) bpmInput.disabled = true;
+        }
+    }
+    // Per browser che richiedono interazione utente per avviare l'audio
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+}
+
+// --- Funzioni Metronomo ---
+function playMetronomeTick(time, isAccent) {
+    if (!audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    osc.frequency.setValueAtTime(isAccent ? metronomeAccentFrequency : metronomeTickFrequency, time);
+    gainNode.gain.setValueAtTime(isAccent ? 1.0 : 0.6, time); // Accento più forte
+
+    osc.start(time);
+    osc.stop(time + 0.05); // Durata del tick
+
+    // Feedback visivo
+    if (metronomeVisualIndicator) {
+        metronomeVisualIndicator.classList.remove('metronome-indicator-off');
+        metronomeVisualIndicator.classList.add('metronome-indicator-on');
+        setTimeout(() => {
+            metronomeVisualIndicator.classList.remove('metronome-indicator-on');
+            metronomeVisualIndicator.classList.add('metronome-indicator-off');
+        }, 80); // Durata del feedback visivo
+    }
+}
+
+function metronomeScheduler() {
+    if (!audioContext) return;
+    // Finché ci sono note da schedulare nel prossimo intervallo
+    while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
+        const isAccent = currentBeatInMeasure === 0;
+        playMetronomeTick(nextNoteTime, isAccent);
+        nextNoteTime += (60.0 / metronomeBpm); // Avanza al prossimo tick
+
+        currentBeatInMeasure = (currentBeatInMeasure + 1) % beatsPerMeasure;
+    }
+}
+
+function startMetronome() {
+    if (isMetronomeRunning || !audioContext) return;
+     if (audioContext.state === 'suspended') { // Assicura che l'audio context sia attivo
+        audioContext.resume();
+    }
+    isMetronomeRunning = true;
+    currentBeatInMeasure = 0; // Resetta il conteggio della battuta
+    nextNoteTime = audioContext.currentTime + 0.05; // Inizia a schedulare leggermente nel futuro
+    
+    // Prova ad estrarre i beats per misura dalla time signature dell'esercizio, se disponibile
+    if (currentExerciseDefinition && currentExerciseDefinition.timeSignature) {
+        const tsParts = currentExerciseDefinition.timeSignature.split('/');
+        if (tsParts.length === 2) {
+            const num = parseInt(tsParts[0]);
+            if (!isNaN(num) && num > 0) {
+                beatsPerMeasure = num;
+            } else {
+                beatsPerMeasure = 4; // Default se non parsabile
+            }
+        } else {
+            beatsPerMeasure = 4; // Default se formato non valido
+        }
+    } else {
+        beatsPerMeasure = 4; // Default se non c'è esercizio o time signature
+    }
+    console.log(`Metronomo avviato. BPM: ${metronomeBpm}, Battiti/Misura: ${beatsPerMeasure}`);
+
+    schedulerIntervalId = setInterval(metronomeScheduler, lookahead);
+    if (metronomeToggleButton) {
+        metronomeToggleButton.textContent = "Ferma Metronomo";
+        metronomeToggleButton.classList.add('metronome-active');
+    }
+}
+
+function stopMetronome() {
+    if (!isMetronomeRunning) return;
+    isMetronomeRunning = false;
+    clearInterval(schedulerIntervalId);
+    schedulerIntervalId = null;
+    if (metronomeToggleButton) {
+        metronomeToggleButton.textContent = "Avvia Metronomo";
+        metronomeToggleButton.classList.remove('metronome-active');
+    }
+    if (metronomeVisualIndicator) {
+        metronomeVisualIndicator.classList.remove('metronome-indicator-on');
+        metronomeVisualIndicator.classList.add('metronome-indicator-off');
+    }
+    console.log("Metronomo fermato.");
+}
+
+function toggleMetronome() {
+    initAudioContext(); // Assicura che l'audio context sia inizializzato
+    if (!audioContext) return;
+
+    if (isMetronomeRunning) {
+        stopMetronome();
+    } else {
+        if (bpmInput) {
+            metronomeBpm = parseInt(bpmInput.value, 10);
+            if (isNaN(metronomeBpm) || metronomeBpm < 30 || metronomeBpm > 240) {
+                metronomeBpm = 100;
+                bpmInput.value = metronomeBpm;
+            }
+        } else {
+            metronomeBpm = 100; // Fallback se bpmInput non è definito
+        }
+        startMetronome();
+    }
+}
+
 
 // Funzione helper per convertire numero MIDI in nome nota (formato "C4", "F#3")
 const MIDI_NOTE_NAMES_ARRAY = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -106,8 +255,7 @@ function getNoteDescriptionForUser(noteObj) {
     return "Nota Sconosciuta";
 }
 
-// FUNZIONE 2: selectExercise
-// (Modificata per memorizzare `expectedMidiValues` e calcolare `totalNotesPerRepetition` correttamente per i MIDI individuali)
+
 function selectExercise(exerciseId, categoryKey) {
     if (!exerciseId || !categoryKey || !allExercises[categoryKey] || !Array.isArray(allExercises[categoryKey])) {
         console.warn("Selezione esercizio non valida:", exerciseId, categoryKey);
@@ -125,7 +273,7 @@ function selectExercise(exerciseId, categoryKey) {
         currentExerciseData = JSON.parse(JSON.stringify(currentExerciseDefinition));
 
         targetRepetitions = currentExerciseDefinition.repetitions || DEFAULT_TARGET_REPETITIONS;
-        totalNotesPerRepetition = 0; // Conteggio delle singole note MIDI attese
+        totalNotesPerRepetition = 0;
         let hasPlayableNotes = false;
         let noteCounter = 0;
         ['notes', 'notesTreble', 'notesBass'].forEach(key => {
@@ -133,15 +281,15 @@ function selectExercise(exerciseId, categoryKey) {
                 currentExerciseData[key].forEach(noteObj => {
                     if (noteObj) {
                         noteObj.uniqueId = `${key}-${noteCounter++}`;
-                        let midiVals = []; // Conterrà i MIDI originali con ottava
+                        let midiVals = [];
                         if (typeof noteObj.midiValue === 'number') midiVals = [noteObj.midiValue];
                         else if (Array.isArray(noteObj.midiValues)) midiVals = noteObj.midiValues;
                         
-                        noteObj.expectedMidiValues = midiVals; // Cruciale: memorizza i MIDI da confrontare
+                        noteObj.expectedMidiValues = midiVals;
 
                         if (!(noteObj.keys && noteObj.keys[0]?.toLowerCase().startsWith('r/'))) {
                             if (midiVals.length > 0) hasPlayableNotes = true;
-                            totalNotesPerRepetition += midiVals.length; // Somma ogni componente MIDI di accordi/note
+                            totalNotesPerRepetition += midiVals.length;
                         }
                     }
                 });
@@ -156,9 +304,6 @@ function selectExercise(exerciseId, categoryKey) {
             currentExerciseData.notesTreble = renderOutput.processedNotes.treble || currentExerciseData.notesTreble || [];
             currentExerciseData.notesBass = renderOutput.processedNotes.bass || currentExerciseData.notesBass || [];
             currentExerciseData.notes = renderOutput.processedNotes.single || currentExerciseData.notes || [];
-            // LOG DEBUG
-            // console.log("SELECT_EX - Ticks Tr:", currentExerciseData.notesTreble.filter(n=>n.startTick!==undefined).map(n=>({k:n.keys,t:n.startTick, id:n.uniqueId, m:n.expectedMidiValues})));
-            // console.log("SELECT_EX - Ticks Bs:", currentExerciseData.notesBass.filter(n=>n.startTick!==undefined).map(n=>({k:n.keys,t:n.startTick, id:n.uniqueId, m:n.expectedMidiValues})));
         }
         
         highlightPendingNotes(); 
@@ -171,7 +316,6 @@ function selectExercise(exerciseId, categoryKey) {
 
         if (!midiReady) updateInfo("Collega MIDI.");
         else if (!hasPlayableNotes) updateInfo("Nessuna nota da suonare.");
-        // else l'info è gestita da highlightPendingNotes()
 
     } else {
         console.error(`Errore: Esercizio ID "${exerciseId}" non trovato.`);
@@ -182,8 +326,7 @@ function selectExercise(exerciseId, categoryKey) {
     }
 }
 
-// FUNZIONE 3: highlightPendingNotes
-// (Modificata per logica anti-sblobbamento più precisa)
+
 function highlightPendingNotes() {
     if (!currentExerciseData) { 
         if (!currentExerciseDefinition) updateInfo("Seleziona un esercizio.");
@@ -199,10 +342,8 @@ function highlightPendingNotes() {
     let activeDescs = [];
     let minTickFound = Infinity;
     
-    // Fase 1: Identifica il prossimo 'minNextTick' rilevante da note non 'correct'/'rest'/'ignored'
     ['notesBass', 'notesTreble', 'notes'].forEach(key => {
         (currentExerciseData[key] || []).forEach(noteObj => {
-            // Considera solo note che NON sono già 'correct' e sono suonabili
             if (noteObj && typeof noteObj.startTick === 'number' && 
                 noteObj.status !== 'correct' && noteObj.status !== 'rest' && noteObj.status !== 'ignored') {
                 minTickFound = Math.min(minTickFound, noteObj.startTick);
@@ -210,35 +351,25 @@ function highlightPendingNotes() {
         });
     });
 
-    if (minTickFound === Infinity) { // Nessuna nota valida rimanente (né pending, né expected parziale non corretto)
+    if (minTickFound === Infinity) {
         if (isPlaying && currentRepetitionData.notesCorrectThisRep < totalNotesPerRepetition) {
-             // Questo indica un potenziale stallo se la ripetizione non è completa
              console.warn(`HIGHLIGHT: Stallo? No actionable notes found at minTick, ma rep MIDI count: ${currentRepetitionData.notesCorrectThisRep}/${totalNotesPerRepetition}`);
              updateInfo(`Rip. ${currentRepetition}/${targetRepetitions}. Attenzione: stallo note.`);
         } else if (isPlaying) { 
-            // Se la ripetizione è completa (secondo il conteggio MIDI), allora è ok
             updateInfo(`Rip. ${currentRepetition}/${targetRepetitions}. Completata (nessuna nota pendente).`);
         }
         return;
     }
-    // console.log(`HIGHLIGHT: Min tick identificato per prossime note 'expected': ${minTickFound}`);
 
-    // Fase 2: Marca come 'expected' SOLO le note 'pending' a minTickFound
-    // e colleziona descrizioni di TUTTE le note (già 'expected' o appena marcate) a minTickFound.
-    // Le note che erano già 'expected' (es. accordi parziali) e sono a minTickFound, rimangono 'expected'.
-    let madeChangeToExpectedState = false;
     ['notesBass', 'notesTreble', 'notes'].forEach(key => {
         (currentExerciseData[key] || []).forEach(noteObj => {
             if (noteObj && typeof noteObj.startTick === 'number' && noteObj.startTick === minTickFound) {
                 if (noteObj.status === 'pending') {
                     noteObj.status = 'expected';
-                    madeChangeToExpectedState = true; 
-                    if (noteObj.expectedMidiValues && noteObj.expectedMidiValues.length > 1) { // Se è un accordo
-                        noteObj.correctMidiValues = []; // Resetta l'array delle note corrette per l'accordo
+                    if (noteObj.expectedMidiValues && noteObj.expectedMidiValues.length > 1) {
+                        noteObj.correctMidiValues = [];
                     }
-                    // console.log(`HIGHLIGHT: Nota ${noteObj.uniqueId} (Tick ${minTickFound}, MIDI: ${noteObj.expectedMidiValues?.join(',')}) --> EXPECTED`);
                 }
-                // Aggiungi alla descrizione se è 'expected' (sia che fosse già, sia che sia appena diventata)
                 if (noteObj.status === 'expected') {
                     activeDescs.push(getNoteDescriptionForUser(noteObj));
                 }
@@ -252,26 +383,20 @@ function highlightPendingNotes() {
         console.warn("HIGHLIGHT: minTickFound era valido, ma nessuna descrizione attiva. Controllare stati note.");
         updateInfo(`Rip. ${currentRepetition}/${targetRepetitions}. Valutazione...`);
     }
-    // `madeChangeToExpectedState` può essere usato da handleNoteOn per sapere se è necessario un render.
 }
 
 
-// FUNZIONE 4: handleNoteOn
-// (Modificata per DIPENDENZA OTTAVA e logica ANTI-SBLOBBAMENTO precisa)
 function handleNoteOn(noteName, midiNote, velocity) {
     playedNoteSpan.textContent = `${noteName} (MIDI: ${midiNote})`;
     playedNoteSpan.style.color = '';
 
     if (!isPlaying || isPaused || !currentExerciseData) return;
     
-    // Ripristinato confronto MIDI diretto (CON OTTAVA)
     console.log(`MIDI In: ${noteName} (${midiNote}) | Rip: ${currentRepetition}/${targetRepetitions} | MIDI OK Rip: ${currentRepetitionData.notesCorrectThisRep}/${totalNotesPerRepetition}`);
 
     let noteInputConsumed = false; 
     let staveNoteObjectThatMatched = null; 
 
-    // 1. Prendi una SNAPSHOT del "blocco" di StaveNote che sono TUTTE 'expected' IN QUESTO MOMENTO.
-    //    Queste sono state identificate da highlightPendingNotes() come quelle al 'minNextTick' corrente.
     const currentExpectedBlockSnapshot = []; 
     ['notesBass', 'notesTreble', 'notes'].forEach(key => {
         (currentExerciseData[key] || []).forEach(noteObj => {
@@ -283,57 +408,48 @@ function handleNoteOn(noteName, midiNote, velocity) {
     
     if (currentExpectedBlockSnapshot.length === 0 && isPlaying) {
         console.warn("HANDLE_NOTE_ON: Input MIDI, ma nessuna StaveNote 'expected'. Input fuori tempo o stallo.");
-        // Non fare nulla se non ci sono note attese definite, potrebbe essere un input accidentale.
         return; 
     }
-    // DEBUG Log
-    // console.log("HANDLE_NOTE_ON - Blocco Atteso CORRENTE:", currentExpectedBlockSnapshot.map(n=>({id:n.uniqueId,keys:n.keys,midi:n.expectedMidiValues,tick: n.startTick,status:n.status})));
 
-
-    // 2. Tenta di far corrispondere l'input MIDI (CON OTTAVA) a UNA StaveNote nel blocco corrente.
     for (const expectedStave of currentExpectedBlockSnapshot) {
-        if (expectedStave.status === 'correct') continue; // Già interamente completata.
-        if (!expectedStave.expectedMidiValues || expectedStave.expectedMidiValues.length === 0) continue; // Nota non suonabile.
+        if (expectedStave.status === 'correct') continue;
+        if (!expectedStave.expectedMidiValues || expectedStave.expectedMidiValues.length === 0) continue;
 
-        // Confronto MIDI diretto (CON OTTAVA) usando i valori da expectedMidiValues
-        if (expectedStave.expectedMidiValues.length === 1) { // Nota singola attesa
+        if (expectedStave.expectedMidiValues.length === 1) {
             if (midiNote === expectedStave.expectedMidiValues[0]) {
                 staveNoteObjectThatMatched = expectedStave;
                 expectedStave.status = 'correct';
-                currentRepetitionData.notesCorrectThisRep++; // Incrementa conteggio NOTE MIDI individuali corrette
-                correctNotesThisRepetition++; // Incrementa conteggio VexFlow StaveNotes completate
+                currentRepetitionData.notesCorrectThisRep++;
+                correctNotesThisRepetition++;
                 noteInputConsumed = true;
                 console.log(`   OK Nota Singola (MIDI): ${noteName}. Stave ID: ${expectedStave.uniqueId}`);
-                break; // L'input MIDI è stato usato, esci dal loop delle StaveNote del blocco.
+                break;
             }
-        } else { // Accordo atteso (expectedMidiValues ha più di un MIDI)
-            if (expectedStave.expectedMidiValues.includes(midiNote)) { // Controlla se il MIDI suonato è uno dei componenti attesi
+        } else {
+            if (expectedStave.expectedMidiValues.includes(midiNote)) {
                 if (!expectedStave.correctMidiValues) expectedStave.correctMidiValues = [];
-                if (!expectedStave.correctMidiValues.includes(midiNote)) { // Solo se questa specifica nota MIDI dell'accordo non era già stata registrata
+                if (!expectedStave.correctMidiValues.includes(midiNote)) {
                     staveNoteObjectThatMatched = expectedStave;
                     expectedStave.correctMidiValues.push(midiNote);
-                    currentRepetitionData.notesCorrectThisRep++; // Incrementa conteggio NOTE MIDI individuali corrette
+                    currentRepetitionData.notesCorrectThisRep++;
                     noteInputConsumed = true;
-                    // console.log(`   OK Nota ${noteName} per Accordo ${expectedStave.uniqueId}. Note accordo OK: ${expectedStave.correctMidiValues.length}/${expectedStave.expectedMidiValues.length}`);
                     if (expectedStave.correctMidiValues.length >= expectedStave.expectedMidiValues.length) {
-                        expectedStave.status = 'correct'; // L'intera StaveNote (accordo) è corretta
-                        correctNotesThisRepetition++; // Incrementa conteggio VexFlow StaveNotes completate
+                        expectedStave.status = 'correct';
+                        correctNotesThisRepetition++;
                         console.log(`   -> Accordo ${expectedStave.uniqueId} (${getNoteDescriptionForUser(expectedStave)}) COMPLETATO.`);
                     }
-                    break; // L'input MIDI è stato usato per questo componente dell'accordo.
+                    break;
                 }
             }
         }
-    } // Fine loop su currentExpectedBlockSnapshot
+    }
 
-    // 3. Aggiorna UI e controlla avanzamento o errore
     if (noteInputConsumed) {
         updateInfo(`OK: ${getNoteDescriptionForUser(staveNoteObjectThatMatched)} (suonata ${noteName})`);
         updateSuccessRate();
         
-        // Render per mostrare la nota corretta (es. in verde)
         const savedScroll = scoreDiv.scrollTop;
-        let rOut = renderExercise(scoreDivId, currentExerciseData); // currentExerciseData ora ha lo stato aggiornato
+        let rOut = renderExercise(scoreDivId, currentExerciseData);
         if (rOut && rOut.processedNotes) { 
             currentExerciseData.notesTreble = rOut.processedNotes.treble || currentExerciseData.notesTreble || [];
             currentExerciseData.notesBass = rOut.processedNotes.bass || currentExerciseData.notesBass || [];
@@ -341,16 +457,13 @@ function handleNoteOn(noteName, midiNote, velocity) {
         }
         scoreDiv.scrollTop = savedScroll;
 
-        // Controlla se TUTTE le StaveNote che erano parte del BLOCCO CORRENTE (nella snapshot) sono ora 'correct'
         let allStaveNotesInCurrentBlockNowCorrect = true;
-        if (currentExpectedBlockSnapshot.length === 0) { // Se il blocco era vuoto (non dovrebbe succedere se input processato)
+        if (currentExpectedBlockSnapshot.length === 0) {
             allStaveNotesInCurrentBlockNowCorrect = false; 
         } else {
             for (const expectedStaveFromSnapshot of currentExpectedBlockSnapshot) {
-                // Bisogna trovare l'istanza aggiornata della nota in currentExerciseData usando uniqueId
-                // per verificare il suo stato REALE dopo l'input.
                 let updatedStaveInCurrentData = null;
-                const typeKey = expectedStaveFromSnapshot.uniqueId.split('-')[0]; // "notesTreble", "notesBass", o "notes"
+                const typeKey = expectedStaveFromSnapshot.uniqueId.split('-')[0];
                 if(currentExerciseData[typeKey]) {
                     updatedStaveInCurrentData = currentExerciseData[typeKey].find(n => n.uniqueId === expectedStaveFromSnapshot.uniqueId);
                 }
@@ -363,30 +476,24 @@ function handleNoteOn(noteName, midiNote, velocity) {
                         break;
                     }
                 } else if (expectedStaveFromSnapshot.status !== 'rest' && expectedStaveFromSnapshot.status !== 'ignored') {
-                    // Se la nota della snapshot non è più trovata e non era una pausa, c'è un problema.
                     console.warn(`LOGIC CHECK FALLITO: Nota con ID ${expectedStaveFromSnapshot.uniqueId} (non pausa) non trovata in currentExerciseData per il check di avanzamento del blocco.`);
                     allStaveNotesInCurrentBlockNowCorrect = false; 
                     break;
                 }
             }
         }
-        // console.log("HANDLE_NOTE_ON - Dopo input OK, 'allStaveNotesInCurrentBlockNowCorrect' è:", allStaveNotesInCurrentBlockNowCorrect);
 
-        // 5. Gestisci l'avanzamento alla prossima nota/ripetizione o il completamento dell'esercizio
         if (currentRepetitionData.notesCorrectThisRep >= totalNotesPerRepetition) {
-            // La ripetizione è finita basandosi sul conteggio TOTALE delle note MIDI
             console.log(`--- Ripetizione ${currentRepetition} COMPLETATA (totale note MIDI)! ---`);
             finalizeAndStoreRepetitionData();
             if (currentRepetition < targetRepetitions) { 
-                // ... Logica per preparare la prossima ripetizione (reset stati, initRepData, ecc.)
-                // e poi CHIAMARE highlightPendingNotes() seguita da renderExercise() nel setTimeout
                 currentRepetition++; correctNotesThisRepetition = 0; initializeNewRepetitionData(currentRepetition);
                 ['notes', 'notesTreble', 'notesBass'].forEach(key => { (currentExerciseData[key]||[]).forEach(no => { if(no && no.status!=='rest'&&no.status!=='ignored'){no.status='pending';if(no.expectedMidiValues && no.expectedMidiValues.length>1)no.correctMidiValues=[];}}); });
                 updateInfo(`Ottimo! Prepara Rip. ${currentRepetition}`);
                 setTimeout(() => { 
                     if(!isPlaying||isPaused)return; 
-                    const s1=scoreDiv.scrollTop; let ro1=renderExercise(scoreDivId,currentExerciseData);if(ro1&&ro1.processedNotes){/*aggiorna currentExerciseData con i nuovi (anche se non dovrebbero cambiare i tick)*/}scoreDiv.scrollTop=s1; 
-                    highlightPendingNotes(); // Trova il prossimo blocco per la NUOVA ripetizione
+                    const s1=scoreDiv.scrollTop; let ro1=renderExercise(scoreDivId,currentExerciseData);if(ro1&&ro1.processedNotes){/*aggiorna*/}scoreDiv.scrollTop=s1; 
+                    highlightPendingNotes();
                     const s2=scoreDiv.scrollTop; let ro2=renderExercise(scoreDivId,currentExerciseData);if(ro2&&ro2.processedNotes){/*aggiorna*/} scoreDiv.scrollTop=s2; 
                     updateSuccessRate(); 
                     if(scoreDiv.scrollHeight>scoreDiv.clientHeight&&correctNotesThisRepetition===0){scoreDiv.scrollTop=0; setTimeout(startScrolling,100);} 
@@ -396,28 +503,18 @@ function handleNoteOn(noteName, midiNote, velocity) {
                 handleExerciseCompletion(); 
             }
         } else if (allStaveNotesInCurrentBlockNowCorrect) {
-            // Il BLOCCO corrente di note 'expected' è stato completato, ma la ripetizione NON è ancora finita.
-            // È il momento di trovare e illuminare il PROSSIMO blocco di note.
             console.log("HANDLE_NOTE_ON - Avanzamento Blocco: Tutte le StaveNote del blocco corrente sono 'correct'. Chiamo highlightPendingNotes() per il prossimo.");
-            
-            highlightPendingNotes(); // Trova le *prossime* StaveNote da marcare come 'expected'
-            
-            // Re-render per mostrare le nuove StaveNote 'expected' (e i 'correct' del blocco appena completato)
+            highlightPendingNotes();
             const scrollAfterHighlight = scoreDiv.scrollTop;
             let rOutHighlight = renderExercise(scoreDivId, currentExerciseData); 
             if (rOutHighlight && rOutHighlight.processedNotes) { /* ... aggiorna currentExerciseData ... */ }
             scoreDiv.scrollTop = scrollAfterHighlight;
         } else { 
-            // C'è stato un input corretto, ma il blocco corrente di StaveNote 'expected' NON è ancora completo.
-            // (Es. suonata una nota di un accordo, o una mano ma non l'altra se richieste insieme).
-            // NON chiamare highlightPendingNotes() per avanzare. L'info text si aggiornerà basandosi 
-            // sullo stato parzialmente completato del blOCCO CORRENTE se highlightPendingNotes viene chiamata.
              console.log("HANDLE_NOTE_ON - Progresso parziale nel blocco corrente. Non si avanza l'highlight principale. Aggiorno info.");
-             highlightPendingNotes(); // Richiama per aggiornare l'info text con le note rimanenti del blocco corrente.
-                                      // Non dovrebbe cambiare QUALI note sono 'expected' se la logica di highlight è corretta.
+             highlightPendingNotes();
         }
 
-    } else { // Nota suonata SBAGLIATA (non corrisponde a NESSUNA delle StaveNote nel blocco atteso)
+    } else {
         const expectedDesc = currentExpectedBlockSnapshot.map(nStave => getNoteDescriptionForUser(nStave)).join(' & ');
         updateInfo(`Errore: ${noteName} non atteso. Atteso: ${expectedDesc || 'N/A (blocco atteso vuoto?)'}`);
         playedNoteSpan.style.color = 'red';
@@ -429,13 +526,10 @@ function handleNoteOn(noteName, midiNote, velocity) {
             timeOffsetSeconds: parseFloat(((performance.now() - currentRepetitionData.startTime - currentRepetitionData.pausedDurationMs) / 1000).toFixed(2)),
             noteId: currentExpectedBlockSnapshot[0]?.uniqueId || "error-no-expected-id" 
         });
-        // Nessun re-render necessario qui di default, perché lo stato delle note visive non cambia
-        // (a meno che non si voglia evidenziare la nota sbagliata sul pentagramma, che è complesso).
     }
 }
 
 
-// --- Funzioni Inizializzazione e Caricamento Dati ---
 function loadExerciseData() {
     if (window.exerciseData) {
         allExercises = window.exerciseData;
@@ -456,8 +550,6 @@ function populateCategorySelect() {
             option.value = catKey;
             option.textContent = catKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             categorySelect.appendChild(option);
-        } else {
-            // console.warn(`Categoria "${catKey}" ignorata (vuota o senza esercizi validi).`);
         }
     });
     clearExerciseSummary();
@@ -491,9 +583,6 @@ function populateExerciseSelect(categoryKey) {
     currentExerciseData = null; currentExerciseDefinition = null;
     totalNotesPerRepetition = 0;
 }
-
-
-
 
 function clearExerciseSummary() {
     summaryTotalTimeSpan.textContent = '--';
@@ -530,7 +619,7 @@ function resetNoteStatesAndRepetition() {
                         noteObj.status = 'rest';
                     } else if (noteObj.expectedMidiValues && noteObj.expectedMidiValues.length > 0) {
                         noteObj.status = 'pending';
-                        if (noteObj.expectedMidiValues.length > 1) { // Se è un accordo
+                        if (noteObj.expectedMidiValues.length > 1) {
                             noteObj.correctMidiValues = []; 
                         }
                     } else {
@@ -541,8 +630,6 @@ function resetNoteStatesAndRepetition() {
         }
     });
 }
-
-
 
 function startScrolling() {
     if (scrollInterval) clearInterval(scrollInterval);
@@ -561,17 +648,29 @@ function startScrolling() {
 function stopScrolling() { if (scrollInterval) { clearInterval(scrollInterval); scrollInterval = null; } }
 
 function pauseExercise() {
-    if (!isPlaying || isPaused) return; isPaused = true;
+    if (!isPlaying || isPaused) return; 
+    isPaused = true;
     currentRepetitionData.pauseStartTimeInternal = performance.now();
     if (!globalPauseStartTime) globalPauseStartTime = performance.now();
-    stopScrolling(); startButton.disabled = true;
-    pauseButton.textContent = "Resume"; pauseButton.disabled = false;
-    stopButton.disabled = false; theoryButton.disabled = false;
+    
+    stopScrolling(); 
+    startButton.disabled = true;
+    pauseButton.textContent = "Resume"; 
+    pauseButton.disabled = false;
+    stopButton.disabled = false; 
+    theoryButton.disabled = false;
     updateInfo("Esercizio in Pausa.");
+
+    // Metti in pausa (ferma) il metronomo se è attivo
+    if (isMetronomeRunning) {
+        sessionStorage.setItem('metronomeWasRunningOnPause', 'true');
+        stopMetronome();
+    }
 }
 
 function resumeExercise() {
-    if (!isPlaying || !isPaused) return; isPaused = false;
+    if (!isPlaying || !isPaused) return; 
+    isPaused = false;
     if (currentRepetitionData.pauseStartTimeInternal) {
         const repPauseDuration = performance.now() - currentRepetitionData.pauseStartTimeInternal;
         currentRepetitionData.pausedDurationMs += repPauseDuration;
@@ -582,10 +681,23 @@ function resumeExercise() {
         exerciseStats.totalPausedDurationMs += globalPauseDuration;
         globalPauseStartTime = 0;
     }
-    startScrolling(); startButton.disabled = true;
-    pauseButton.textContent = "Pause"; pauseButton.disabled = false;
-    stopButton.disabled = false; theoryButton.disabled = true;
+    
+    startScrolling(); 
+    startButton.disabled = true;
+    pauseButton.textContent = "Pause"; 
+    pauseButton.disabled = false;
+    stopButton.disabled = false; 
+    theoryButton.disabled = true;
     highlightPendingNotes();
+
+    // Riavvia il metronomo se era attivo prima della pausa
+    if (sessionStorage.getItem('metronomeWasRunningOnPause') === 'true') {
+        initAudioContext(); // Assicura init
+        if (audioContext) {
+            startMetronome();
+        }
+        sessionStorage.removeItem('metronomeWasRunningOnPause');
+    }
 }
 
 function handleTheoryClick() { window.open(THEORY_PAGE_URL, '_blank'); }
@@ -604,6 +716,16 @@ function startExercise() {
     startButton.disabled = true; pauseButton.disabled = false; pauseButton.textContent = "Pause";
     stopButton.disabled = false; categorySelect.disabled = true; exerciseSelect.disabled = true;
     theoryButton.disabled = true; updateSuccessRate(); playedNoteSpan.textContent = '--'; clearExerciseSummary();
+
+    // Avvia il metronomo se "Avvia con esercizio" è selezionato e non è già attivo
+    if (metronomeAutoStartCheckbox && metronomeAutoStartCheckbox.checked && !isMetronomeRunning) {
+        initAudioContext(); // Assicura init
+        if (audioContext) {
+            if (bpmInput) metronomeBpm = parseInt(bpmInput.value, 10); // Prendi il BPM corrente dall'input
+            else metronomeBpm = 100; // Fallback
+            startMetronome();
+        }
+    }
 
     // Render per stati pending (gli startTick sono già in currentExerciseData da selectExercise)
     let rOut1 = renderExercise(scoreDivId, currentExerciseData);
@@ -639,19 +761,31 @@ function finalizeAndStoreRepetitionData() {
 }
 
 function stopExercise() {
-    if (!isPlaying && stopButton.disabled) return;
-    if (isPlaying) finalizeAndStoreRepetitionData();
+    if (!isPlaying && stopButton.disabled) return; 
+    
+    if (isPlaying) { 
+        finalizeAndStoreRepetitionData();
+    }
     
     exerciseStats.exerciseEndTime = performance.now();
     if (exerciseStats.exerciseStartTime > 0) {
         let totalDurationMs = exerciseStats.exerciseEndTime - exerciseStats.exerciseStartTime;
         totalDurationMs -= exerciseStats.totalPausedDurationMs; 
         exerciseStats.totalActiveTimeSeconds = parseFloat((Math.max(0, totalDurationMs) / 1000).toFixed(2));
-    } else exerciseStats.totalActiveTimeSeconds = 0;
+    } else {
+        exerciseStats.totalActiveTimeSeconds = 0;
+    }
     
     displayExerciseSummary();
     if (exerciseCompletionTimeout) clearTimeout(exerciseCompletionTimeout);
-    stopScrolling(); isPlaying = false; isPaused = false;
+    stopScrolling(); 
+    
+    if (isMetronomeRunning) {
+        stopMetronome();
+    }
+
+    isPlaying = false; 
+    isPaused = false;
 
     if (currentExerciseData) {
         resetNoteStatesAndRepetition();
@@ -662,14 +796,20 @@ function stopExercise() {
             currentExerciseData.notes = rOut.processedNotes.single || currentExerciseData.notes;
         }
         scoreDiv.scrollTop = 0;
-    } else scoreDiv.innerHTML = '<p>Nessun esercizio attivo.</p>';
+    } else {
+        scoreDiv.innerHTML = '<p>Nessun esercizio attivo.</p>';
+    }
     
     startButton.disabled = !midiReady || !currentExerciseData || !totalNotesPerRepetition;
-    pauseButton.disabled = true; stopButton.disabled = true; categorySelect.disabled = false;
-    exerciseSelect.disabled = false; theoryButton.disabled = false;
+    pauseButton.disabled = true; 
+    stopButton.disabled = true; 
+    categorySelect.disabled = false;
+    exerciseSelect.disabled = (categorySelect.value === ""); 
+    theoryButton.disabled = false;
     
     highlightPendingNotes(); 
-    playedNoteSpan.textContent = '--'; successRateSpan.textContent = '-- %';
+    playedNoteSpan.textContent = '--'; 
+    successRateSpan.textContent = '-- %';
 }
 
 function resetUIState() {
@@ -690,10 +830,6 @@ function updateSuccessRate() {
 }
 
 function updateInfo(message) { expectedNoteSpan.textContent = message; }
-
-
-
-
 
 function handleExerciseCompletion() {
     console.log("[handleExerciseCompletion] Tutte le ripetizioni finite.");
@@ -757,7 +893,6 @@ function handleExerciseCompletion() {
                  setTimeout(startExercise, 200); 
             } else {
                  theoryButton.disabled = false; 
-                 // Lo stato e i messaggi info sono gestiti da selectExercise -> highlightPendingNotes
             }
         }, delay);
     } else {
@@ -770,7 +905,6 @@ function handleExerciseCompletion() {
         scoreDiv.innerHTML = '<p>Categoria completata! Scegli un nuovo esercizio.</p>';
     }
 }
-
 
 function displayExerciseSummary() {
     if (!exerciseStats || !exerciseStats.repetitionsData || Object.keys(exerciseStats).length === 0) {
@@ -811,7 +945,7 @@ function updateMidiStatus(message, isConnected) {
         theoryButton.disabled = isPlaying && !isPaused;
         if (!isPlaying) {
             if (!exSelectedAndPlayable) updateInfo("MIDI pronto. Seleziona un esercizio.");
-            else highlightPendingNotes(); // Per messaggio "Pronto per..."
+            else highlightPendingNotes();
         }
     } else {
         startButton.disabled = true; pauseButton.disabled = true;
@@ -841,11 +975,34 @@ document.addEventListener('DOMContentLoaded', () => {
     scoreDiv.innerHTML = '<p>Benvenuto! Seleziona una categoria e un esercizio.</p>';
     updateInfo("Collega un dispositivo MIDI e seleziona un esercizio."); 
 
-    scrollSpeedValueSpan.textContent = scrollSpeedControl.value;
-    scrollSpeed = parseInt(scrollSpeedControl.value, 10);
-    scrollSpeedControl.addEventListener('input', (e) => {
-        scrollSpeed = parseInt(e.target.value, 10);
-        scrollSpeedValueSpan.textContent = e.target.value;
-        console.log(`Velocità scrolling aggiornata: ${scrollSpeed}`);
-    });
+    if (scrollSpeedValueSpan && scrollSpeedControl) {
+        scrollSpeedValueSpan.textContent = scrollSpeedControl.value;
+        scrollSpeed = parseInt(scrollSpeedControl.value, 10);
+        scrollSpeedControl.addEventListener('input', (e) => {
+            scrollSpeed = parseInt(e.target.value, 10);
+            scrollSpeedValueSpan.textContent = e.target.value;
+            console.log(`Velocità scrolling aggiornata: ${scrollSpeed}`);
+        });
+    }
+
+    // Imposta BPM iniziale del metronomo e aggiungi listener
+    if (bpmInput) {
+        metronomeBpm = parseInt(bpmInput.value, 10);
+        bpmInput.addEventListener('change', () => {
+            if (!audioContext) initAudioContext();
+            let newBpm = parseInt(bpmInput.value, 10);
+            if (isNaN(newBpm) || newBpm < 30 || newBpm > 240) {
+                newBpm = 100; // Valore di fallback
+                bpmInput.value = newBpm;
+            }
+            metronomeBpm = newBpm;
+            if (isMetronomeRunning) {
+                stopMetronome();
+                startMetronome();
+            }
+        });
+    }
+    if (metronomeToggleButton) {
+        metronomeToggleButton.addEventListener('click', toggleMetronome);
+    }
 });
