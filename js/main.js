@@ -1,13 +1,21 @@
-/**
- * main.js - Logica principale e gestione eventi Piano Future.
- * **VERSIONE CON ILLUMINAZIONE SELETTIVA E PROGRESSIONE RIGOROSA**
+
+ /**
+
  *
- * Piano Future
- * Copyright (c) 2025 Lorenzetti Giuseppe
+ * Piano Tutor Extrame Edition V2 (o il nome attuale del progetto)
+ * Copyright (c) 2023-2024 Lorenzetti Giuseppe (aggiorna l'anno se necessario)
  *
- * Questo codice sorgente è rilasciato sotto la licenza MIT.
- * Vedi il file LICENSE nel repository GitHub per i dettagli completi.
- * https://github.com/thc792/piano-tutor-extraime/blob/main/LICENSE
+ * Tutti i diritti riservati.
+ *
+ * Questo software è proprietario e confidenziale.
+ * È concesso in licenza, non venduto. L'uso, la riproduzione, la modifica
+ * o la distribuzione non autorizzata di questo software, o di qualsiasi sua parte,
+ * sono severamente vietati.
+ *
+ * Per informazioni sulla licenza e per i termini di utilizzo completi,
+ * fare riferimento al file LICENSE.md disponibile nel repository del progetto:
+ * [Link al tuo nuovo LICENSE.md nel repository, es: https://github.com/thc792/Piano-tutor-extrame-edition-V2/blob/main/LICENSE.md]
+ * o contattare [la tua email].
  */
 
 import { renderExercise } from './vexflow_renderer.js';
