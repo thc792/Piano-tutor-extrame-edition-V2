@@ -6,12 +6,11 @@
     <title>Piano Tutor Extrame Edition V2</title>
     <link rel="stylesheet" href="style.css">
     <!-- VexFlow (locale) -->
-    <script src="js/vexflow.js"></script>
+    <script src="publiclibs/vexflow.js"></script> <!-- Assumendo sia in public/publiclibs/ -->
 </head>
 <body>
     <header class="app-header">
         <h1>Piano Tutor Extrame V2</h1>
-        <!-- Note Svolazzanti -->
         <span class="floating-note note-1">♫</span>
         <span class="floating-note note-2">♪</span>
         <span class="floating-note note-3">♩</span>
@@ -40,7 +39,6 @@
         </div>
     </div>
 
-    <!-- SEZIONE METRONOMO -->
     <div class="metronome-controls controls">
         <label for="bpm-input">BPM:</label>
         <input type="number" id="bpm-input" value="100" min="30" max="240" step="1">
@@ -50,7 +48,6 @@
             <input type="checkbox" id="metronome-auto-start"> Avvia con esercizio
         </label>
     </div>
-    <!-- FINE SEZIONE METRONOMO -->
 
     <div class="status-area">
         <div class="status-column">
@@ -61,7 +58,7 @@
             <p>Progresso: <span id="success-rate">-- %</span></p>
         </div>
         <div class="status-column exercise-stats-container">
-            <h4>Statistiche Esercizio Corrente</h4>
+            <h4>Statistiche Esercizio</h4>
             <p>Tempo Totale Attivo: <span id="summary-total-time">--</span></p>
             <p>Errori Totali: <span id="summary-total-errors">--</span></p>
             <p>Tempo Medio Ripetizione: <span id="summary-avg-rep-time">--</span></p>
@@ -71,6 +68,14 @@
             <div id="summary-errors-list" class="errors-list">
                 <p>Nessun esercizio completato.</p>
             </div>
+        </div>
+        <!-- NUOVO: Contenitore per Feedback AI -->
+        <div class="status-column ai-feedback-container">
+            <h4>Feedback dall'Esperto AI</h4>
+            <div id="ai-feedback-content" class="ai-feedback-list">
+                <p>Completa un esercizio per ricevere un'analisi AI.</p>
+            </div>
+            <button id="get-ai-feedback-button" style="display: none; margin-top: 10px;">Analizza con AI</button>
         </div>
     </div>
 
@@ -86,7 +91,7 @@
     </div>
 
     <!-- Script Esercizi (IMPORTANTE: prima di main.js) -->
-    <!-- Ordine specificato -->
+    <!-- Assicurati che questi percorsi siano corretti rispetto a index.html -->
     <script src="js/exercises/giri_armonici.js"></script>
     <script src="js/exercises/accordi_rivolti.js"></script>
     <script src="js/exercises/ritmica_avanzata.js"></script>
@@ -95,31 +100,24 @@
     <script src="js/exercises/accompagnamenti.js"></script>
     <script src="js/exercises/accordi_complessi.js"></script>
     <script src="js/exercises/arpeggi.js"></script>
-    <script src="js/exercises/indipendenza_mani.js"></script> <!-- Nome ipotizzato, verifica -->
-    <script src="js/exercises/tecnica_coordinazione.js"></script> <!-- Nome ipotizzato, verifica -->
-    <script src="js/exercises/contrappunto_base.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/indipendenza_mani.js"></script>
+    <script src="js/exercises/tecnica_coordinazione.js"></script>
+    <script src="js/exercises/contrappunto_base.js"></script>
     <script src="js/exercises/charper_1.js"></script>
     <script src="js/exercises/charper_2.js"></script>
     <script src="js/exercises/charper_3.js"></script>
     <script src="js/exercises/czernyop599.js"></script>
     <script src="js/exercises/beyer_op101.js"></script>
     <script src="js/exercises/beyer101liv2.js"></script>
-    <script src="js/exercises/alfred_basic_inspired.js"></script> <!-- Assumendo sia in js/exercises/ -->
-
-    <!-- Altri file di esercizi non specificati nell'ordine, aggiunti a seguire -->
+    <script src="js/exercises/alfred_basic_inspired.js"></script>
     <script src="js/exercises/faber_inspired.js"></script>
-    <script src="js/exercises/licks_blues_ragtime.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/licks_blues_ragtime.js"></script>
     <script src="js/exercises/licks_jazz.js"></script>
-    <script src="js/exercises/teoria_riconoscimento.js"></script> <!-- Nome ipotizzato, verifica -->
+    <script src="js/exercises/teoria_riconoscimento.js"></script>
     <script src="js/exercises/voicing_jazz_blues.js"></script>
-
+    <!-- Aggiungi qui altri tuoi file di esercizi -->
 
     <script>
-        // Raccogli tutti gli esercizi in un unico oggetto window.exerciseData
-        // ATTENZIONE: I nomi delle categorie (es. Giri_Armonici) e i nomi delle variabili
-        // (es. giriArmoniciExercises) sono IPOTIZZATI. Devi adattarli a come hai
-        // effettivamente organizzato e nominato i dati nei tuoi file JS.
-        // L'ordine delle chiavi qui determina l'ordine nel selettore delle categorie.
         window.exerciseData = {
             Giri_Armonici: typeof giriArmoniciExercises !== 'undefined' ? giriArmoniciExercises : [],
             Accordi_Rivolti: typeof accordiRivoltiExercises !== 'undefined' ? accordiRivoltiExercises : [],
@@ -139,7 +137,6 @@
             Beyer_Op101: typeof beyerOp101Exercises !== 'undefined' ? beyerOp101Exercises : [],
             Beyer_Op101_Liv2: typeof beyerOp101Liv2Exercises !== 'undefined' ? beyerOp101Liv2Exercises : [],
             Alfred_Basic_Inspired: typeof alfredBasicInspiredExercises !== 'undefined' ? alfredBasicInspiredExercises : [],
-            // Categorie per gli esercizi aggiunti a seguire
             Faber_Inspired: typeof faberInspiredExercises !== 'undefined' ? faberInspiredExercises : [],
             Licks_Blues_Ragtime: typeof licksBluesRagtimeExercises !== 'undefined' ? licksBluesRagtimeExercises : [],
             Licks_Jazz: typeof licksJazzExercises !== 'undefined' ? licksJazzExercises : [],
@@ -148,6 +145,11 @@
         };
     </script>
 
+    <!-- I tuoi script principali -->
+    <!-- Assicurati che questi percorsi siano corretti rispetto a index.html -->
     <script type="module" src="js/main.js"></script>
+    <!-- metronome.js e midi_handler.js sono importati da main.js, quindi non serve includerli qui se sono moduli ES6 -->
+    <!-- vexflow_renderer.js è importato da main.js -->
+
 </body>
 </html>

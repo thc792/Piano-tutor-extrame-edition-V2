@@ -1,13 +1,6 @@
 /**
  * style.css
  * Stili per Piano Tutor Extrame Edition V2
- *
- * Piano Tutor Extrame Edition V2
- * Copyright (c) 2023-2024 Lorenzetti Giuseppe
- *
- * Tutti i diritti riservati.
- * Questo software è proprietario e confidenziale.
- * Per informazioni sulla licenza, fare riferimento a LICENSE.md o contattare pianoothc791@gmail.com
  */
 
 /* Reset base e font globale */
@@ -67,9 +60,8 @@ body {
     100% { transform: translateY(0px) translateX(0px) rotate(-5deg); opacity: 0.5; }
 }
 
-/* Titolo principale */
 h1 {
-    color: #03A9F4; /* Testo Blu Vibrante */
+    color: #03A9F4;
     margin: 0 auto;
     font-weight: bold;
     font-size: 2.5em;
@@ -78,29 +70,27 @@ h1 {
         0 0 8px #4FC3F7,
         0 0 12px #81D4FA,
         0 0 18px #388E3C;
-    border: 3px solid #DAA520; /* Bordo Oro Muted */
+    border: 3px solid #DAA520;
     padding: 12px 25px;
     border-radius: 10px;
     display: inline-block;
-    background-color: rgba(31, 56, 31, 0.6); /* Sfondo verde scuro semi-trasparente */
-    box-shadow: 0 0 12px rgba(218, 165, 32, 0.6); /* Ombra basata sul colore oro */
+    background-color: rgba(31, 56, 31, 0.6);
+    box-shadow: 0 0 12px rgba(218, 165, 32, 0.6);
     position: relative;
     z-index: 10;
 }
 
-/* Contenitori per controlli (selettori e slider) */
 .controls {
     margin: 20px;
     margin-bottom: 10px;
     padding: 15px 20px;
-    background-color: #1F381F; /* Verde Scuro Secondario */
-    border: 1px solid #A7C080; /* Bordo Verde-Grigio */
+    background-color: #1F381F;
+    border: 1px solid #A7C080;
     border-radius: 8px;
     text-align: center;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Elementi dentro i controls (selettori e slider) */
 .controls label,
 .controls select,
 .controls .scroll-speed-control {
@@ -109,6 +99,7 @@ h1 {
     border-radius: 4px;
     vertical-align: middle;
     font-size: 0.95em;
+    color: #E0E1DD; /* Colore label */
 }
 
 .controls select {
@@ -117,7 +108,6 @@ h1 {
     border: 1px solid #A7C080;
 }
 
-/* Stili specifici per il controllo velocità */
 .scroll-speed-control {
     display: inline-block;
     align-items: center;
@@ -129,7 +119,6 @@ h1 {
 .scroll-speed-control label {
     margin-right: 10px;
     font-weight: normal;
-    color: #E0E1DD;
 }
 .scroll-speed-control input[type="range"] {
     vertical-align: middle;
@@ -140,14 +129,12 @@ h1 {
     font-weight: bold;
     min-width: 20px;
     text-align: center;
-    color: #E0E1DD;
 }
 
-/* Controlli Metronomo */
 .metronome-controls {
     margin-top: 10px;
     padding: 10px 15px;
-    background-color: #1A2E1A; /* Un verde leggermente diverso per distinguerlo */
+    background-color: #1A2E1A;
 }
 
 .metronome-controls label,
@@ -156,7 +143,6 @@ h1 {
     margin: 0 5px;
     vertical-align: middle;
 }
-
 .metronome-controls input[type="number"] {
     width: 60px;
     padding: 8px;
@@ -165,49 +151,37 @@ h1 {
     color: #E0E1DD;
     border-radius: 4px;
 }
-
 #metronome-toggle-button {
     padding: 8px 15px;
     font-size: 0.95em;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    background-color: #007bff; /* Blu per "Avvia" */
+    background-color: #007bff;
     color: white;
     border: 1px solid #0056b3;
 }
-
 #metronome-toggle-button.metronome-active {
-    background-color: #dc3545; /* Rosso per "Ferma" */
+    background-color: #dc3545;
     border-color: #c82333;
 }
-
 #metronome-toggle-button:disabled {
     background-color: #6c757d;
     border-color: #6c757d;
     cursor: not-allowed;
 }
-
-/* Indicatore Visivo Metronomo */
 #metronome-visual-indicator {
     display: inline-block;
     width: 20px;
     height: 20px;
     margin-left: 10px;
     border-radius: 50%;
-    background-color: #444; /* Spento */
+    background-color: #444;
     vertical-align: middle;
     transition: background-color 0.05s ease-out;
 }
-
-.metronome-indicator-on {
-    background-color: #DAA520 !important; /* Oro acceso */
-}
-.metronome-indicator-off {
-    background-color: #444 !important; /* Grigio scuro spento */
-}
-
-/* Stile per il checkbox auto-start */
+.metronome-indicator-on { background-color: #DAA520 !important; }
+.metronome-indicator-off { background-color: #444 !important; }
 .metronome-controls label[for="metronome-auto-start"] {
     color: #E0E1DD;
     font-size: 0.9em;
@@ -217,8 +191,6 @@ h1 {
     margin-right: 3px;
 }
 
-
-/* Area di stato */
 .status-area {
     margin: 10px 20px 10px 20px;
     padding: 15px 20px;
@@ -227,75 +199,108 @@ h1 {
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     display: flex;
+    flex-wrap: wrap; /* Permette alle colonne di andare a capo su schermi piccoli */
     justify-content: space-between;
     gap: 15px;
 }
 
 .status-column {
-    flex: 1;
+    flex: 1 1 250px; /* Flex grow, flex shrink, flex basis (larghezza minima prima di andare a capo) */
     padding: 10px;
     border: 1px dashed #5a8c5a;
     border-radius: 5px;
-    min-width: 200px;
+    min-width: 220px; /* Larghezza minima effettiva della colonna */
+    background-color: rgba(15, 32, 15, 0.1); /* Sfondo leggero per le colonne */
 }
 .status-column h4 {
     color: #DAA520;
     margin-bottom: 8px;
     text-align: center;
+    font-size: 1.1em;
 }
-
 .status-area p {
-    margin: 5px 0;
+    margin: 6px 0;
     text-align: left;
+    font-size: 0.95em;
 }
-
 .status-area span {
     font-weight: bold;
-    color: #8BC34A; /* Verde Chiaro Vibrante */
-}
-
-/* Stili specifici per i contenitori delle nuove statistiche */
-.exercise-stats-container, .errors-detail-container {
-    background-color: rgba(15, 32, 15, 0.3);
+    color: #8BC34A;
 }
 
 .errors-list {
     max-height: 120px;
     overflow-y: auto;
-    padding: 5px;
+    padding: 5px 8px;
     border: 1px solid #4a6b4a;
     border-radius: 4px;
     font-size: 0.9em;
+    background-color: rgba(0,0,0,0.1);
 }
-.errors-list p {
-    font-style: italic;
-    color: #a0a0a0;
-    text-align: center;
-}
-.errors-list ul {
-    list-style-type: none;
-    padding-left: 0;
-}
-.errors-list li {
-    padding: 3px 0;
-    border-bottom: 1px dotted #5a8c5a;
-}
-.errors-list li:last-child {
-    border-bottom: none;
-}
-.errors-list strong {
-    color: #DAA520;
-}
-.errors-list small {
-    color: #b0b0b0;
+.errors-list p { font-style: italic; color: #a0a0a0; text-align: center; }
+.errors-list ul { list-style-type: none; padding-left: 0; }
+.errors-list li { padding: 3px 0; border-bottom: 1px dotted #5a8c5a; }
+.errors-list li:last-child { border-bottom: none; }
+.errors-list strong { color: #DAA520; }
+.errors-list small { color: #b0b0b0; }
+
+
+/* NUOVI Stili per AI Feedback Container */
+.ai-feedback-container {
+    background-color: rgba(218, 165, 32, 0.1); /* Sfondo leggermente diverso per distinguerlo, basato sull'oro */
+    border-left: 3px solid #DAA520;
 }
 
-/* Contenitore dei pulsanti di controllo */
+.ai-feedback-list {
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #8c733e; /* Bordo interno dorato scuro */
+    border-radius: 4px;
+    font-size: 0.9em;
+    line-height: 1.5;
+    background-color: rgba(0,0,0,0.2); /* Sfondo più scuro per il testo */
+    white-space: pre-wrap;
+    color: #E0E1DD;
+}
+.ai-feedback-list p {
+    font-style: normal;
+    color: #c0c0c0;
+    margin: 0; /* Rimuovi margini extra se ci sono */
+    padding: 3px 0;
+}
+.ai-feedback-list p:empty::before {
+    content: "Nessun feedback AI disponibile al momento.";
+    font-style: italic;
+    color: #a0a0a0;
+}
+
+#get-ai-feedback-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background-color 0.3s ease;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 10px; /* Già presente nello style inline, ma meglio qui */
+}
+#get-ai-feedback-button:hover:not(:disabled) { background-color: #0056b3; }
+#get-ai-feedback-button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+
 .control-buttons {
     margin: 10px 20px 20px 20px;
     text-align: center;
 }
-
 .control-buttons button {
     margin: 0 10px;
     padding: 10px 20px;
@@ -305,23 +310,18 @@ h1 {
     transition: background-color 0.3s ease;
     min-width: 80px;
 }
-
 #start-button { background-color: #28a745; color: white; border: 1px solid #218838; }
 #start-button:hover:not(:disabled) { background-color: #218838; }
 #start-button:disabled { background-color: #6c757d; border-color: #6c757d; cursor: not-allowed; }
-
 #stop-button { background-color: #dc3545; color: white; border: 1px solid #c82333; }
 #stop-button:hover:not(:disabled) { background-color: #c82333; }
 #stop-button:disabled { background-color: #6c757d; border-color: #6c757d; cursor: not-allowed; }
-
 #pause-button { background-color: #ffc107; color: #212529; border: 1px solid #d39e00; }
 #pause-button:hover:not(:disabled) { background-color: #d39e00; color: white; }
 #pause-button:disabled { background-color: #6c757d; border-color: #6c757d; cursor: not-allowed; }
-
 #theory-button { background-color: #17a2b8; color: white; border: 1px solid #138496; }
 #theory-button:hover { background-color: #138496; }
 
-/* Area dello spartito VexFlow */
 #score {
     margin: 20px;
     margin-top: 20px;
@@ -345,15 +345,12 @@ h1 {
         #CCCCCC 80px
     );
 }
-
 #score svg {
     display: inline-block;
     background-color: transparent;
     position: relative;
     z-index: 1;
 }
-
-/* Stili VexFlow */
 .vf-annotation text {
     fill: #1F381F;
     font-size: 0.9em;
@@ -362,17 +359,16 @@ h1 {
 
 /* Media Query per schermi più piccoli */
 @media (max-width: 768px) {
-    .app-header { padding: 20px 15px 30px 15px; min-height: 150px; border-bottom-color: #A7C080; }
+    .app-header { padding: 20px 15px 30px 15px; min-height: 150px; }
     .floating-note { font-size: 22px; opacity: 0.4;}
-    h1 { font-size: 1.8em; padding: 10px 15px; border-color: #DAA520; background-color: rgba(31, 56, 31, 0.6); box-shadow: 0 0 8px rgba(218, 165, 32, 0.4); }
+    h1 { font-size: 1.8em; padding: 10px 15px; }
     
-    .controls, .metronome-controls { padding: 10px; margin-left: 10px; margin-right: 10px; background-color: #1F381F; border-color: #A7C080; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+    .controls, .metronome-controls { padding: 10px; margin-left: 10px; margin-right: 10px; }
     .control-buttons { padding: 10px; margin-left: 10px; margin-right: 10px; }
-
     .controls label, .controls select { margin: 4px 6px; padding: 7px 10px; font-size: 0.9em; }
     .controls select { min-width: 150px; }
 
-    .metronome-controls { /* Aggiunto per 768px */
+    .metronome-controls {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -384,35 +380,22 @@ h1 {
         margin: 5px 0;
         width: auto;
     }
-     #metronome-visual-indicator {
-        margin-top: 5px;
-    }
+     #metronome-visual-indicator { margin-top: 5px; }
     
     .status-area {
         padding: 10px; margin-left: 10px; margin-right: 10px;
-        background-color: #1F381F; border-color: #A7C080;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         flex-direction: column;
-        align-items: stretch;
+        align-items: stretch; /* Fa sì che le colonne prendano tutta la larghezza disponibile */
     }
-    .status-column {
-        min-width: unset;
-        margin-bottom: 10px;
-    }
-    .status-column:last-child {
-        margin-bottom: 0;
-    }
+    .status-column { min-width: unset; margin-bottom: 10px; flex-basis: auto; /* Resetta flex-basis */}
+    .status-column:last-child { margin-bottom: 0; }
     .status-area p { margin: 5px 10px; font-size: 0.9em;}
-    .status-area span { color: #8BC34A; }
 
-    .errors-list {
-        max-height: 100px;
-    }
+    .errors-list { max-height: 100px; }
+    .ai-feedback-list { max-height: 120px; } /* Leggermente meno alto su mobile */
 
-    #score { min-height: 280px; padding: 15px; margin-left: 10px; margin-right: 10px; border-color: #1F381F; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+    #score { min-height: 280px; padding: 15px; margin-left: 10px; margin-right: 10px; }
     .control-buttons button { min-width: 60px; padding: 8px 15px; font-size: 1em; }
-    .scroll-speed-control { background-color: #0F200F; border-color: #A7C080; }
-    .vf-annotation text { fill: #1F381F; }
 }
 
 @media (max-width: 480px) {
@@ -423,15 +406,9 @@ h1 {
     .controls { display: flex; flex-direction: column; align-items: stretch; }
     .controls label, .controls select, .controls .scroll-speed-control { width: 90%; margin: 5px auto; }
 
-    /* .metronome-controls sono già column da 768px */
-
-    .status-area {
-        align-items: center;
-    }
-    .status-column {
-         width: 90%;
-    }
-    .status-area p { text-align: center; width: 100%; }
+    .status-area { align-items: center; } /* Centra le colonne se diventano strette */
+    .status-column { width: 90%; } /* Le colonne prendono il 90% della larghezza del loro container */
+    .status-area p { text-align: center; } /* Testo centrato per paragrafi */
     .status-area span { text-align: center; display: block; margin-left: 0; margin-top: 3px; }
 
     .control-buttons { display: flex; flex-direction: column; align-items: stretch; }
