@@ -443,7 +443,7 @@ function startExercise() {
     if(theoryButton) theoryButton.disabled = true; updateSuccessRate(); if(playedNoteSpan) playedNoteSpan.textContent = '--';
     clearExerciseSummary();
 
-    if (metronomeAutoStartCheckbox && metronomeAutoStartCheckbox.checked && !isMetronomeRunning()) {
+    if (metronomeAutoStartCheckbox && metronomeAutoStartCheckbox.checked && !isMetronomeRunning) { // RIMOSSE ()
         initAudioContext(); let exerciseBeatsPerMeasure = 4;
         if (currentExerciseDefinition?.timeSignature) { const tsParts = currentExerciseDefinition.timeSignature.split('/'); if (tsParts.length === 2) { const num = parseInt(tsParts[0]); if (!isNaN(num) && num > 0) exerciseBeatsPerMeasure = num; }}
         startMetronome(exerciseBeatsPerMeasure);
@@ -470,7 +470,7 @@ function stopExercise() {
     displayExerciseSummary();
     if (exerciseCompletionTimeout) clearTimeout(exerciseCompletionTimeout);
     stopScrolling();
-    if (isMetronomeRunning()) stopMetronome();
+    if (isMetronomeRunning) stopMetronome(); // RIMOSSE ()
     isPlaying = false; isPaused = false;
 
     if (currentExerciseData) {
@@ -507,7 +507,7 @@ function pauseExercise() {
     if (!globalPauseStartTime) globalPauseStartTime = performance.now();
     stopScrolling(); if(pauseButton) { pauseButton.textContent = "Resume"; pauseButton.disabled = false; }
     if(theoryButton) theoryButton.disabled = false; updateInfo("Esercizio in Pausa.");
-    if (isMetronomeRunning()) { sessionStorage.setItem('metronomeWasRunningOnPause', 'true'); stopMetronome(); }
+    if (isMetronomeRunning) { sessionStorage.setItem('metronomeWasRunningOnPause', 'true'); stopMetronome(); } // RIMOSSE ()
 }
 
 function resumeExercise() {
