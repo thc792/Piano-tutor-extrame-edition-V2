@@ -386,38 +386,44 @@ function handleNoteOn(noteName, midiNote, velocity) {
 
     // Se la nota suonata non corrisponde a nessuna delle note 'expected'
     if (!noteMatchedAnExpected) {
-        let anExpectedNoteWasTargeted = false;
-        noteCollections.forEach(notes => {
-            if (notes) {
-                notes.forEach(noteObj => {
-                    if (noteObj && noteObj.status === 'expected') {
-                        // Se c'era almeno una nota 'expected', e quella suonata non corrisponde, è un errore per quella nota 'expected'.
-                        // Potremmo marcare la prima 'expected' trovata come errore o tutte.
-                        // Per ora, registriamo un errore per la prima 'expected' che troviamo.
-                        if (!anExpectedNoteWasTargeted) {
-                            noteObj.status = 'incorrect';
-                            noteObj.isCorrect = false;
-                            noteObj.playedMidiValue = midiNote;
-                            if (currentRepetitionData && currentRepetitionData.errors) {
-                                currentRepetitionData.errors.push({
-                                    expectedMidiValues: [...noteObj.expectedMidiValues],
-                                    playedMidiValue: midiNote,
-                                    timestamp: performance.now()
-                                });
-                            }
-                            anExpectedNoteWasTargeted = true; // Errore registrato per una nota expected
+    let anExpectedNoteWasTargeted = false;
+    noteCollections.forEach(notes => {
+        if (notes) {
+            notes.forEach(noteObj => {
+                if (noteObj && noteObj.status === 'expected') { // Nota: originale era solo 'expected'
+                    if (!anExpectedNoteWasTargeted) { // Gestisci solo il primo errore per questo evento MIDI
+                        noteObj.status = 'incorrect';
+                        noteObj.isCorrect = false;
+                        noteObj.playedMidiValue = midiNote;
+
+                        // === INIZIO AGGIUNTA DATI PER ANALISI RITMICA ===
+                        let errorData = {
+                            expectedMidiValues: [...noteObj.expectedMidiValues],
+                            playedMidiValue: midiNote,
+                            timestamp: performance.now(), // Timestamp dell'errore
+                            // Aggiungi i dati teorici della nota attesa
+                            expectedNoteStartTick: noteObj.startTick, // Assumendo che startTick sia sulla notaObj
+                            expectedNoteDuration: noteObj.duration, // Passa la stringa della durata originale
+                            // Il BPM dovrà essere preso da metronome.js (es. importando metronomeBpm)
+                            // bpmAtTimeOfError: metronomeBpm // (da importare da metronome.js)
+                        };
+                        // Potresti voler calcolare expectedNoteDurationTicks qui
+                        // usando una funzione simile a durationToTicks se non vuoi farlo nel backend
+                        // import { durationToTicks } from './vexflow_renderer.js'; // Se non già importata
+                        // errorData.expectedNoteDurationTicks = durationToTicks(noteObj.duration);
+
+                        if (currentRepetitionData && currentRepetitionData.errors) {
+                            currentRepetitionData.errors.push(errorData);
                         }
+                        // === FINE AGGIUNTA DATI ===
+                        anExpectedNoteWasTargeted = true;
                     }
-                });
-            }
-        });
-        if (!anExpectedNoteWasTargeted) {
-            // L'utente ha suonato una nota quando nessuna era 'expected' o completamente fuori contesto.
-            // Potremmo voler registrare un tipo diverso di errore o ignorarlo.
-            console.log("Nota suonata ma nessuna era 'expected' o nota completamente errata.");
-            // Per ora, non registriamo errore se non c'era una chiara "expected" violata
+                }
+            });
         }
-    }
+    });
+    // ...
+}
 
     updateSuccessRate();
 
