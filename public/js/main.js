@@ -1,7 +1,8 @@
 /**
  * main.js
  * Logica principale per Piano Tutor Extrame Edition V2
- * VERSIONE COMPLETA CON IMPLEMENTAZIONI DI BASE E INTEGRAZIONE AI
+ * VERSIONE COMPLETA CON IMPLEMENTAZIONI DI BASE, INTEGRAZIONE AI,
+ * SINTESI VOCALE E REGISTRAZIONE DETTAGLIATA EVENTI NOTA.
  */
 
 import { renderExercise } from './vexflow_renderer.js';
@@ -10,7 +11,8 @@ import {
     startMetronome,
     stopMetronome,
     initAudioContext,
-    isMetronomeRunning
+    isMetronomeRunning,
+    metronomeBpm // <<<< MODIFICA: Aggiunto import metronomeBpm
 } from './metronome.js';
 
 // --- Costanti e Riferimenti DOM ---
@@ -38,7 +40,7 @@ const summaryErrorsListDiv = document.getElementById('summary-errors-list');
 // --- Riferimenti DOM per Feedback AI ---
 let aiFeedbackContentDiv = null;
 let getAIFeedbackButton = null;
-const AI_BACKEND_ENDPOINT = '/api/get_ai_feedback';
+const AI_BACKEND_ENDPOINT = '/api/get_ai_feedback'; // Assicurati che sia l'endpoint corretto per Vercel o il tuo server
 
 // --- Stato Applicazione ---
 let allExercises = {};
@@ -50,11 +52,11 @@ let midiReady = false;
 let exerciseCompletionTimeout = null;
 
 // --- Stato Avanzamento Esercizio ---
-let totalNotesInExercise = 0; // Totale note suonabili nell'intero esercizio (non per ripetizione)
-let correctNotesInExercise = 0; // Totale note corrette nell'intero esercizio
+let totalNotesInExercise = 0;
+let correctNotesInExercise = 0;
 
-let totalNotesPerRepetition = 0; // Note suonabili per una singola ripetizione
-let correctNotesThisRepetition = 0; // Note corrette nella ripetizione corrente
+let totalNotesPerRepetition = 0;
+let correctNotesThisRepetition = 0;
 let currentRepetition = 1;
 const DEFAULT_TARGET_REPETITIONS = 5;
 let targetRepetitions = DEFAULT_TARGET_REPETITIONS;
@@ -88,10 +90,9 @@ function midiToNoteName(midiValue) {
     const octave = Math.floor(midiValue / 12) - 1;
     return `${MIDI_NOTE_NAMES_ARRAY[midiValue % 12]}${octave}`;
 }
+
 function highlightPendingNotes() {
-    // console.log("highlightPendingNotes: Start");
     if (!currentExerciseData) {
-        // console.log("highlightPendingNotes: No currentExerciseData, bailing.");
         return;
     }
 
@@ -101,7 +102,6 @@ function highlightPendingNotes() {
 
     const noteArrays = [currentExerciseData.notesTreble, currentExerciseData.notesBass, currentExerciseData.notes].filter(arr => arr && arr.length > 0);
 
-    // Trova il/i prossimo/i gruppo/i di note 'pending' con lo startTick più basso
     noteArrays.forEach(notes => {
         notes.forEach(noteObj => {
             if (noteObj && noteObj.status === 'pending' && !(noteObj.keys && noteObj.keys[0]?.toLowerCase().startsWith('r/'))) {
@@ -109,31 +109,23 @@ function highlightPendingNotes() {
                     if (noteObj.startTick < minPendingTick) {
                         minPendingTick = noteObj.startTick;
                         notesToMakeExpected = [noteObj];
-                        firstPendingNoteForDisplay = noteObj; // Prendi la prima del nuovo gruppo con tick minimo
-                        // console.log(`highlightPendingNotes: New minPendingTick ${minPendingTick} found for noteObj ${noteObj.uniqueId}`);
+                        firstPendingNoteForDisplay = noteObj;
                     } else if (noteObj.startTick === minPendingTick) {
                         notesToMakeExpected.push(noteObj);
-                        // console.log(`highlightPendingNotes: Added noteObj ${noteObj.uniqueId} to current minPendingTick group.`);
                     }
-                } else {
-                    // console.warn("highlightPendingNotes: noteObj found with status 'pending' but no startTick:", noteObj);
                 }
             }
         });
     });
 
-    // console.log(`highlightPendingNotes: notesToMakeExpected count: ${notesToMakeExpected.length}`);
-
     if (isPlaying && !isPaused && notesToMakeExpected.length > 0) {
-        // console.log("highlightPendingNotes: Setting notes to 'expected'.");
         notesToMakeExpected.forEach(noteObj => {
             noteObj.status = 'expected';
         });
-        if (firstPendingNoteForDisplay) { // Dovrebbe sempre esserci se notesToMakeExpected.length > 0
+        if (firstPendingNoteForDisplay) {
             updateInfo(getNoteDescriptionForUser(firstPendingNoteForDisplay));
         }
     } else if (!isPlaying) {
-        // console.log("highlightPendingNotes: Not playing, setting UI info for pending/completion status.");
         let firstTrulyPendingAfterSelection = null;
         let minTickForSelection = Infinity;
         noteArrays.forEach(notes => {
@@ -158,42 +150,32 @@ function highlightPendingNotes() {
         }
     }
 
-
     if (isPlaying && !isPaused && notesToMakeExpected.length === 0) {
-        // console.log("highlightPendingNotes: No more notes to make 'expected' in this repetition. Finalizing repetition.");
         finalizeAndStoreRepetitionData();
         currentRepetition++;
-        // console.log(`highlightPendingNotes: Advanced to repetition ${currentRepetition}. Target: ${targetRepetitions}`);
         if (currentRepetition <= targetRepetitions) {
             updateInfo(`Inizio Rip. ${currentRepetition}/${targetRepetitions}. Attendi...`);
             resetNoteStatesForNewRepetition();
             initializeNewRepetitionData(currentRepetition);
             setTimeout(() => {
                  if(isPlaying && !isPaused) {
-                    // console.log("highlightPendingNotes: Timeout finished, calling highlightPendingNotes for new repetition.");
                     highlightPendingNotes();
                  }
-            }, 100); // Aumentato leggermente il timeout per stabilità UI
+            }, 100);
         } else {
-            // console.log("highlightPendingNotes: All repetitions completed, calling handleExerciseCompletion().");
             handleExerciseCompletion();
         }
     }
 
-    // Ridisegna se ci sono state modifiche di stato (es. da pending a expected)
-    // O se non stiamo suonando, per mostrare lo stato iniziale pulito.
     if ((isPlaying && !isPaused && notesToMakeExpected.length > 0) || !isPlaying) {
         if (scoreDiv && currentExerciseData) {
-            // console.log("highlightPendingNotes: Rendering score due to state change or not playing.");
             const savedScroll = scoreDiv.scrollTop;
             renderExercise(scoreDivId, currentExerciseData);
             scoreDiv.scrollTop = savedScroll;
-        } else {
-            // console.error("highlightPendingNotes: scoreDiv or currentExerciseData is missing for render!");
         }
     }
-    // console.log("highlightPendingNotes: End");
 }
+
 function getNoteDescriptionForUser(noteObj) {
     if (!noteObj) return "N/A";
     if (noteObj.expectedMidiValues && noteObj.expectedMidiValues.length > 0) {
@@ -299,7 +281,7 @@ function selectExercise(exerciseId, categoryKey) {
                         noteObj.status = 'pending';
                         noteObj.isCorrect = false;
                         noteObj.playedMidiValue = null;
-                        noteObj.correctMidiValues = []; // Per accordi
+                        noteObj.correctMidiValues = [];
                         if (!(noteObj.keys && noteObj.keys[0]?.toLowerCase().startsWith('r/'))) {
                             if (midiVals.length > 0) hasPlayableNotes = true;
                             totalNotesPerRepetition += midiVals.length;
@@ -312,8 +294,8 @@ function selectExercise(exerciseId, categoryKey) {
         correctNotesInExercise = 0;
 
         resetNoteStatesAndRepetition();
-        let renderOutput = renderExercise(scoreDivId, currentExerciseData); // Chiamata VexFlow
-        if (renderOutput && renderOutput.processedNotes) { // Aggiorna con note processate da VexFlow (con startTick, yPos)
+        let renderOutput = renderExercise(scoreDivId, currentExerciseData);
+        if (renderOutput && renderOutput.processedNotes) {
             currentExerciseData.notesTreble = renderOutput.processedNotes.treble || currentExerciseData.notesTreble || [];
             currentExerciseData.notesBass = renderOutput.processedNotes.bass || currentExerciseData.notesBass || [];
             currentExerciseData.notes = renderOutput.processedNotes.single || currentExerciseData.notes || [];
@@ -357,7 +339,7 @@ function resetNoteStatesForNewRepetition() {
     if (currentExerciseData) {
         ['notes', 'notesTreble', 'notesBass'].forEach(key => {
             currentExerciseData[key]?.forEach(noteObj => {
-                if (noteObj && !noteObj.keys[0].toLowerCase().startsWith('r/')) { // Non resettare le pause, solo le note suonabili
+                if (noteObj && !(noteObj.keys && noteObj.keys[0].toLowerCase().startsWith('r/'))) {
                     noteObj.status = 'pending';
                     noteObj.isCorrect = false;
                     noteObj.playedMidiValue = null;
@@ -366,74 +348,131 @@ function resetNoteStatesForNewRepetition() {
             });
         });
     }
-     if (scoreDiv && currentExerciseData) { // Ridisegna per mostrare gli stati resettati
+     if (scoreDiv && currentExerciseData) {
         renderExercise(scoreDivId, currentExerciseData);
     }
 }
 
-
-
-
+// <<<< MODIFICA: Funzione handleNoteOn aggiornata per registrare playedNoteEvents >>>>
 function handleNoteOn(noteName, midiNote, velocity) {
     if (!isPlaying || isPaused || !currentExerciseData) return;
     if (playedNoteSpan) playedNoteSpan.textContent = `${noteName} (MIDI: ${midiNote}, Vel: ${velocity})`;
 
-    let noteMatchedAnExpected = false;
-    const noteCollections = [currentExerciseData.notesTreble, currentExerciseData.notesBass, currentExerciseData.notes];
-    let allExpectedNowResolved = true; // Assumiamo vero finché non troviamo una 'expected' non risolta
+    const absoluteTimestamp = performance.now();
+    let eventType = 'extra_note'; 
+    let matchedExpectedNoteInfo = null;
+    let noteMatchedAnExpectedDirectly = false;
 
-    noteCollections.forEach(notes => {
+    const noteCollections = [currentExerciseData.notesTreble, currentExerciseData.notesBass, currentExerciseData.notes];
+
+    for (const notes of noteCollections) {
         if (notes && Array.isArray(notes)) {
-            notes.forEach(noteObj => {
+            for (const noteObj of notes) {
                 if (noteObj && noteObj.status === 'expected') {
-                    if (noteObj.expectedMidiValues.includes(midiNote) && !noteObj.isCorrect) { // Se è una delle note attese e non già marcata corretta
+                    if (noteObj.expectedMidiValues.includes(midiNote) && !noteObj.isCorrect) { 
+                        noteMatchedAnExpectedDirectly = true;
+                        eventType = 'correct_match';
+                        matchedExpectedNoteInfo = {
+                            uniqueId: noteObj.uniqueId,
+                            keys: noteObj.keys,
+                            expectedMidiValues: [...noteObj.expectedMidiValues],
+                            startTick: noteObj.startTick,
+                            durationString: noteObj.duration,
+                        };
+
                         if (!noteObj.correctMidiValues.includes(midiNote)) {
                             noteObj.correctMidiValues.push(midiNote);
                         }
-                        noteMatchedAnExpected = true;
 
                         if (noteObj.correctMidiValues.length === noteObj.expectedMidiValues.length) {
                             noteObj.status = 'correct';
                             noteObj.isCorrect = true;
-                            correctNotesThisRepetition++; // O incrementa per ogni singola nota corretta dell'accordo
+                            correctNotesThisRepetition++;
                             correctNotesInExercise++;
-                            // Non chiamare highlightPendingNotes qui dentro subito
                         } else {
-                            // Parte di accordo corretta, ma non tutto.
-                            // Lo stato rimane 'expected', Vexflow dovrebbe aggiornare il colore se lo stile 'expected' cambia dinamicamente
-                            // o se renderExercise viene chiamato.
-                            updateInfo(getNoteDescriptionForUser(noteObj)); // Mostra cosa manca
+                            updateInfo(getNoteDescriptionForUser(noteObj));
                         }
-                        // Non usciamo dal loop, una nota MIDI potrebbe (teoricamente) soddisfare più note expected se sono identiche
+                        break; 
                     }
                 }
-            });
+            }
         }
-    });
+        if (noteMatchedAnExpectedDirectly) break; 
+    }
 
-    // Se la nota suonata non corrisponde a nessuna delle note 'expected'
-    
+    if (!noteMatchedAnExpectedDirectly) {
+        let activeExpectedNote = null;
+        for (const notes of noteCollections) {
+            if (notes && Array.isArray(notes)) {
+                activeExpectedNote = notes.find(n => n && n.status === 'expected');
+                if (activeExpectedNote) break;
+            }
+        }
+
+        if (activeExpectedNote) {
+            eventType = 'incorrect_match';
+            matchedExpectedNoteInfo = { 
+                uniqueId: activeExpectedNote.uniqueId,
+                keys: activeExpectedNote.keys,
+                expectedMidiValues: [...activeExpectedNote.expectedMidiValues],
+                startTick: activeExpectedNote.startTick,
+                durationString: activeExpectedNote.duration,
+            };
+            if (currentRepetitionData && currentRepetitionData.errors) {
+                currentRepetitionData.errors.push({
+                    expectedMidiValues: [...activeExpectedNote.expectedMidiValues],
+                    playedMidiValue: midiNote,
+                    repetition: currentRepetition,
+                });
+            }
+        } else {
+            eventType = 'extra_note';
+        }
+    }
+
+    if (currentRepetitionData && currentRepetitionData.playedNoteEvents) {
+        const relativeTimestamp = absoluteTimestamp - (currentRepetitionData.startTime || absoluteTimestamp);
+
+        const eventData = {
+            timestamp: Math.round(relativeTimestamp),
+            midiValuePlayed: midiNote,
+            velocity: velocity,
+            type: eventType,
+        };
+        if (matchedExpectedNoteInfo) {
+            eventData.expectedNoteInfo = matchedExpectedNoteInfo;
+        }
+
+        if (isMetronomeRunning) {
+            eventData.bpmAtEvent = metronomeBpm;
+        } else if (currentExerciseDefinition && currentExerciseDefinition.bpm) {
+            eventData.bpmAtEvent = currentExerciseDefinition.bpm;
+        }
+
+        currentRepetitionData.playedNoteEvents.push(eventData);
+        // console.log("PlayedNoteEvent:", JSON.stringify(eventData, null, 2)); 
+    }
 
     updateSuccessRate();
 
-    // Ora controlla se TUTTE le note che erano 'expected' per il momento corrente sono state risolte (correct o incorrect)
-    noteCollections.forEach(notes => {
-        if (notes) {
-            notes.forEach(noteObj => {
-                if (noteObj && noteObj.status === 'expected') {
-                    allExpectedNowResolved = false; // Trovata una ancora 'expected', non avanzare
-                }
-            });
-        }
-    });
+    let allExpectedForThisMomentResolved = true;
+    if (noteMatchedAnExpectedDirectly) {
+        noteCollections.forEach(notes => {
+            if (notes) {
+                notes.forEach(noteObj => {
+                    if (noteObj && noteObj.status === 'expected') {
+                        allExpectedForThisMomentResolved = false;
+                    }
+                });
+            }
+        });
+    } else {
+        allExpectedForThisMomentResolved = false;
+    }
 
-    if (allExpectedNowResolved) {
-        // Tutte le note del "momento" corrente sono state gestite (o corrette o sbagliate)
-        // Ora possiamo avanzare all'highlighting successivo.
+    if (allExpectedForThisMomentResolved) {
         highlightPendingNotes();
     } else {
-        // Ci sono ancora note 'expected' (es. parti di un accordo non ancora suonate)
-        // Ridisegniamo per mostrare lo stato attuale (es. una nota dell'accordo diventata verde)
         if (scoreDiv && currentExerciseData) {
             const savedScroll = scoreDiv.scrollTop;
             renderExercise(scoreDivId, currentExerciseData);
@@ -441,7 +480,7 @@ function handleNoteOn(noteName, midiNote, velocity) {
         }
     }
 }
-
+// <<<< FINE MODIFICA handleNoteOn >>>>
 
 // --- Gestione Flusso Esercizio (Start, Stop, Pause, Resume) ---
 function startExercise() {
@@ -454,7 +493,7 @@ function startExercise() {
     initializeNewExerciseStats();
     currentRepetition = 1;
     resetNoteStatesAndRepetition();
-    initializeNewRepetitionData(currentRepetition);
+    initializeNewRepetitionData(currentRepetition); // <<<< Qui viene inizializzato currentRepetitionData
 
     isPlaying = true; isPaused = false;
     if(startButton) startButton.disabled = true; if(pauseButton) { pauseButton.disabled = false; pauseButton.textContent = "Pause"; }
@@ -462,7 +501,7 @@ function startExercise() {
     if(theoryButton) theoryButton.disabled = true; updateSuccessRate(); if(playedNoteSpan) playedNoteSpan.textContent = '--';
     clearExerciseSummary();
 
-    if (metronomeAutoStartCheckbox && metronomeAutoStartCheckbox.checked && !isMetronomeRunning) { // RIMOSSE ()
+    if (metronomeAutoStartCheckbox && metronomeAutoStartCheckbox.checked && !isMetronomeRunning) {
         initAudioContext(); let exerciseBeatsPerMeasure = 4;
         if (currentExerciseDefinition?.timeSignature) { const tsParts = currentExerciseDefinition.timeSignature.split('/'); if (tsParts.length === 2) { const num = parseInt(tsParts[0]); if (!isNaN(num) && num > 0) exerciseBeatsPerMeasure = num; }}
         startMetronome(exerciseBeatsPerMeasure);
@@ -474,9 +513,8 @@ function startExercise() {
 
 function stopExercise() {
     if (!isPlaying && stopButton && stopButton.disabled) return;
-    if (isPlaying) { // Se l'esercizio era attivo, finalizza i dati
-        // Assicurati che l'ultima ripetizione sia registrata anche se interrotta
-        if (currentRepetitionData && typeof currentRepetitionData.repetitionNumber !== 'undefined') {
+    if (isPlaying) {
+        if (currentRepetitionData && typeof currentRepetitionData.repetitionNumber !== 'undefined' && Object.keys(currentRepetitionData).length > 0) { // Aggiunto Object.keys per sicurezza
              finalizeAndStoreRepetitionData();
         }
     }
@@ -489,12 +527,12 @@ function stopExercise() {
     displayExerciseSummary();
     if (exerciseCompletionTimeout) clearTimeout(exerciseCompletionTimeout);
     stopScrolling();
-    if (isMetronomeRunning) stopMetronome(); // RIMOSSE ()
+    if (isMetronomeRunning) stopMetronome();
     isPlaying = false; isPaused = false;
 
     if (currentExerciseData) {
-        resetNoteStatesAndRepetition(); // Pulisce gli stati
-        renderExercise(scoreDivId, currentExerciseData); // Ridisegna in stato "pulito"
+        resetNoteStatesAndRepetition();
+        renderExercise(scoreDivId, currentExerciseData);
         if(scoreDiv) scoreDiv.scrollTop = 0;
     } else { if(scoreDiv) scoreDiv.innerHTML = '<p>Nessun esercizio attivo.</p>'; }
 
@@ -502,10 +540,9 @@ function stopExercise() {
     if(pauseButton) { pauseButton.disabled = true; pauseButton.textContent = "Pause"; }
     if(stopButton) stopButton.disabled = true; if(categorySelect) categorySelect.disabled = false;
     if(exerciseSelect) exerciseSelect.disabled = (categorySelect && categorySelect.value === ""); if(theoryButton) theoryButton.disabled = false;
-    highlightPendingNotes(); // Aggiorna UI nota attesa
+    highlightPendingNotes();
     if(playedNoteSpan) playedNoteSpan.textContent = '--'; if(successRateSpan) successRateSpan.textContent = '-- %';
 
-    // --- Logica per pulsante AI ---
     if (getAIFeedbackButton && aiFeedbackContentDiv) {
         if (currentExerciseDefinition && exerciseStats && Object.keys(exerciseStats).length > 0 &&
             exerciseStats.allRepetitionsData && exerciseStats.allRepetitionsData.length > 0) {
@@ -522,16 +559,16 @@ function stopExercise() {
 
 function pauseExercise() {
     if (!isPlaying || isPaused) return; isPaused = true;
-    if(currentRepetitionData) currentRepetitionData.pauseStartTimeInternal = performance.now();
+    if(currentRepetitionData && Object.keys(currentRepetitionData).length > 0) currentRepetitionData.pauseStartTimeInternal = performance.now(); // Aggiunto Object.keys
     if (!globalPauseStartTime) globalPauseStartTime = performance.now();
     stopScrolling(); if(pauseButton) { pauseButton.textContent = "Resume"; pauseButton.disabled = false; }
     if(theoryButton) theoryButton.disabled = false; updateInfo("Esercizio in Pausa.");
-    if (isMetronomeRunning) { sessionStorage.setItem('metronomeWasRunningOnPause', 'true'); stopMetronome(); } // RIMOSSE ()
+    if (isMetronomeRunning) { sessionStorage.setItem('metronomeWasRunningOnPause', 'true'); stopMetronome(); }
 }
 
 function resumeExercise() {
     if (!isPlaying || !isPaused) return; isPaused = false;
-    if (currentRepetitionData && currentRepetitionData.pauseStartTimeInternal) {
+    if (currentRepetitionData && Object.keys(currentRepetitionData).length > 0 && currentRepetitionData.pauseStartTimeInternal) { // Aggiunto Object.keys
         const repPauseDuration = performance.now() - currentRepetitionData.pauseStartTimeInternal;
         currentRepetitionData.pausedDurationMs = (currentRepetitionData.pausedDurationMs || 0) + repPauseDuration;
         currentRepetitionData.pauseStartTimeInternal = 0;
@@ -560,25 +597,29 @@ function initializeNewExerciseStats() {
         totalActiveTimeSeconds: 0,
         totalPausedDurationMs: 0,
         totalErrors: 0,
-        allRepetitionsData: [], // FONDAMENTALE: inizializza come array vuoto
+        allRepetitionsData: [],
     };
     globalPauseStartTime = 0;
-    correctNotesInExercise = 0; // Resetta contatore generale
+    correctNotesInExercise = 0;
 }
 
+// <<<< MODIFICA: Aggiunto playedNoteEvents a currentRepetitionData >>>>
 function initializeNewRepetitionData(repetitionNum) {
     currentRepetitionData = {
         repetitionNumber: repetitionNum,
-        startTime: performance.now(),
+        startTime: performance.now(), 
         endTime: 0,
         durationSeconds: 0,
-        errors: [], // FONDAMENTALE: inizializza come array vuoto
+        errors: [],
+        playedNoteEvents: [], // <<<< NUOVO: Array per gli eventi nota dettagliati
         isCorrect: true,
         pauseStartTimeInternal: 0,
         pausedDurationMs: 0,
     };
     correctNotesThisRepetition = 0;
+    // console.log(`Repetition ${repetitionNum} started at: ${currentRepetitionData.startTime}`); 
 }
+// <<<< FINE MODIFICA initializeNewRepetitionData >>>>
 
 function finalizeAndStoreRepetitionData() {
     if (!currentRepetitionData || typeof currentRepetitionData.repetitionNumber === 'undefined' || Object.keys(currentRepetitionData).length === 0) {
@@ -589,15 +630,16 @@ function finalizeAndStoreRepetitionData() {
     currentRepetitionData.durationSeconds = parseFloat((Math.max(0, repDurationMs) / 1000).toFixed(2));
     currentRepetitionData.isCorrect = currentRepetitionData.errors.length === 0 && correctNotesThisRepetition === totalNotesPerRepetition;
 
-    if(exerciseStats.allRepetitionsData){ // Assicurati che esista
+    if(exerciseStats.allRepetitionsData){
         exerciseStats.allRepetitionsData.push(JSON.parse(JSON.stringify(currentRepetitionData)));
     }
+    // L'incremento di exerciseStats.totalErrors ora avviene solo qui, basato sugli errori della ripetizione
     exerciseStats.totalErrors = (exerciseStats.totalErrors || 0) + currentRepetitionData.errors.length;
-    currentRepetitionData = {}; // Resetta per la prossima
+    currentRepetitionData = {};
 }
 
 function handleExerciseCompletion() {
-    if (isPlaying) { // Se era in esecuzione, assicurati che l'ultima ripetizione sia finalizzata
+    if (isPlaying) {
          if (currentRepetitionData && typeof currentRepetitionData.repetitionNumber !== 'undefined' && Object.keys(currentRepetitionData).length > 0) {
             finalizeAndStoreRepetitionData();
         }
@@ -606,7 +648,7 @@ function handleExerciseCompletion() {
     updateInfo(`Esercizio "${currentExerciseDefinition?.name || 'Corrente'}" completato!`);
     if (exerciseCompletionTimeout) clearTimeout(exerciseCompletionTimeout);
     exerciseCompletionTimeout = setTimeout(() => {
-        stopExercise(); // stopExercise mostrerà il summary e il pulsante AI
+        stopExercise();
     }, 1500);
 }
 
@@ -617,7 +659,7 @@ function displayExerciseSummary() {
         summaryErrorsListDiv.innerHTML = '<p>Nessuna ripetizione completata.</p>'; return;
     }
     summaryTotalTimeSpan.textContent = `${exerciseStats.totalActiveTimeSeconds} s`;
-    summaryTotalErrorsSpan.textContent = exerciseStats.totalErrors;
+    summaryTotalErrorsSpan.textContent = exerciseStats.totalErrors; // Ora questo è corretto
     const totalRepDuration = exerciseStats.allRepetitionsData.reduce((sum, rep) => sum + rep.durationSeconds, 0);
     const avgRepTime = exerciseStats.allRepetitionsData.length > 0 ? (totalRepDuration / exerciseStats.allRepetitionsData.length).toFixed(2) : 0;
     summaryAvgRepTimeSpan.textContent = `${avgRepTime} s`;
@@ -653,7 +695,6 @@ function stopScrolling() { if (scrollInterval) { clearInterval(scrollInterval); 
 function updateSuccessRate() {
     if (!successRateSpan) return;
     if (!isPlaying || totalNotesPerRepetition === 0) { successRateSpan.textContent = '-- %'; return; }
-    // Calcola sulla ripetizione corrente o sull'intero esercizio se preferisci
     const rate = (correctNotesThisRepetition / totalNotesPerRepetition) * 100;
     successRateSpan.textContent = `${rate.toFixed(0)} %`;
 }
@@ -692,7 +733,7 @@ function updateMidiStatus(message, isConnected) {
     }
 }
 
-// --- Funzione AI (come l'avevamo definita) ---
+// --- Funzione AI ---
 async function fetchAIFeedback(exerciseDef, stats) {
     if (!aiFeedbackContentDiv || !getAIFeedbackButton) { return; }
     getAIFeedbackButton.disabled = true;
@@ -704,56 +745,45 @@ async function fetchAIFeedback(exerciseDef, stats) {
         });
         const responseData = await response.json();
         if (!response.ok) { throw new Error(responseData.error || `Errore dal backend: ${response.status}`); }
+        
         const aiTextResponse = responseData.aiFeedbackText || "Nessuna risposta valida dall'AI.";
         aiFeedbackContentDiv.innerHTML = `<p>${aiTextResponse.replace(/\n/g, '<br>')}</p>`;
+
+        if (aiTextResponse && aiTextResponse !== "Nessuna risposta valida dall'AI." && aiTextResponse !== "L'AI non ha fornito una risposta testuale utilizzabile (parti mancanti o contenuto non valido)." && !aiTextResponse.startsWith("Richiesta bloccata")) {
+            speakText(aiTextResponse);
+        }
+
     } catch (error) {
         console.error('Errore fetch AI:', error);
         aiFeedbackContentDiv.innerHTML = `<p style="color: red;">Impossibile ottenere feedback AI: ${error.message}</p>`;
-    } finally { if (getAIFeedbackButton) getAIFeedbackButton.disabled = false; }
-}
-
-// --- Funzione per la Sintesi Vocale (Text-to-Speech) ---
-function speakText(text, lang = 'it-IT') { // Aggiunto parametro lingua con default italiano
-    if ('speechSynthesis' in window) {
-        // Se c'è una lettura in corso, cancellala prima di iniziarne una nuova
-        if (window.speechSynthesis.speaking) {
-            window.speechSynthesis.cancel();
-        }
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang; // Imposta la lingua per una pronuncia migliore
-        utterance.pitch = 1;   // Tono della voce (0-2, default 1)
-        utterance.rate = 1;    // Velocità della voce (0.1-10, default 1)
-        utterance.volume = 1;  // Volume (0-1, default 1)
-
-        // Opzionale: logga le voci disponibili per debug o selezione
-        // utterance.onstart = () => console.log("Sintesi vocale iniziata.");
-        // utterance.onend = () => console.log("Sintesi vocale terminata.");
-        // utterance.onerror = (event) => console.error("Errore sintesi vocale:", event);
-
-        // Prova a selezionare una voce italiana se disponibile (esempio avanzato, opzionale)
-        /*
-        const voices = window.speechSynthesis.getVoices();
-        const italianVoice = voices.find(voice => voice.lang.startsWith('it-'));
-        if (italianVoice) {
-            utterance.voice = italianVoice;
-        }
-        */
-
-        window.speechSynthesis.speak(utterance);
-    } else {
-        console.warn("La sintesi vocale (Text-to-Speech) non è supportata da questo browser.");
-        // Potresti voler informare l'utente in modo più visibile, es. con un alert o un messaggio nell'UI
-        // alert("Il tuo browser non supporta la lettura vocale del testo.");
+    } finally { 
+        if (getAIFeedbackButton) getAIFeedbackButton.disabled = false; 
     }
 }
 
-// Se vuoi che le voci siano caricate prima di un possibile tentativo di selezione (opzionale):
+// --- Funzione per la Sintesi Vocale (Text-to-Speech) ---
+function speakText(text, lang = 'it-IT') {
+    if ('speechSynthesis' in window) {
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.pitch = 1;
+        utterance.rate = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+    } else {
+        console.warn("La sintesi vocale (Text-to-Speech) non è supportata da questo browser.");
+    }
+}
+
 if ('speechSynthesis' in window && typeof window.speechSynthesis.getVoices === 'function') {
     window.speechSynthesis.onvoiceschanged = () => {
         // console.log("Voci per la sintesi vocale caricate:", window.speechSynthesis.getVoices());
     };
 }
+
 // --- Event Listeners ---
 if(categorySelect) categorySelect.addEventListener('change', (e) => populateExerciseSelect(e.target.value));
 if(exerciseSelect) exerciseSelect.addEventListener('change', (e) => selectExercise(e.target.value, categorySelect.value));
@@ -761,7 +791,6 @@ if(startButton) startButton.addEventListener('click', startExercise);
 if(stopButton) stopButton.addEventListener('click', stopExercise);
 if(pauseButton) pauseButton.addEventListener('click', () => { if (isPaused) resumeExercise(); else pauseExercise(); });
 if(theoryButton) theoryButton.addEventListener('click', handleTheoryClick);
-// L'event listener per getAIFeedbackButton è gestito dinamicamente in stopExercise
 
 // --- Application Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
