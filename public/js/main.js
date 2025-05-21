@@ -712,7 +712,48 @@ async function fetchAIFeedback(exerciseDef, stats) {
     } finally { if (getAIFeedbackButton) getAIFeedbackButton.disabled = false; }
 }
 
+// --- Funzione per la Sintesi Vocale (Text-to-Speech) ---
+function speakText(text, lang = 'it-IT') { // Aggiunto parametro lingua con default italiano
+    if ('speechSynthesis' in window) {
+        // Se c'è una lettura in corso, cancellala prima di iniziarne una nuova
+        if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
 
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang; // Imposta la lingua per una pronuncia migliore
+        utterance.pitch = 1;   // Tono della voce (0-2, default 1)
+        utterance.rate = 1;    // Velocità della voce (0.1-10, default 1)
+        utterance.volume = 1;  // Volume (0-1, default 1)
+
+        // Opzionale: logga le voci disponibili per debug o selezione
+        // utterance.onstart = () => console.log("Sintesi vocale iniziata.");
+        // utterance.onend = () => console.log("Sintesi vocale terminata.");
+        // utterance.onerror = (event) => console.error("Errore sintesi vocale:", event);
+
+        // Prova a selezionare una voce italiana se disponibile (esempio avanzato, opzionale)
+        /*
+        const voices = window.speechSynthesis.getVoices();
+        const italianVoice = voices.find(voice => voice.lang.startsWith('it-'));
+        if (italianVoice) {
+            utterance.voice = italianVoice;
+        }
+        */
+
+        window.speechSynthesis.speak(utterance);
+    } else {
+        console.warn("La sintesi vocale (Text-to-Speech) non è supportata da questo browser.");
+        // Potresti voler informare l'utente in modo più visibile, es. con un alert o un messaggio nell'UI
+        // alert("Il tuo browser non supporta la lettura vocale del testo.");
+    }
+}
+
+// Se vuoi che le voci siano caricate prima di un possibile tentativo di selezione (opzionale):
+if ('speechSynthesis' in window && typeof window.speechSynthesis.getVoices === 'function') {
+    window.speechSynthesis.onvoiceschanged = () => {
+        // console.log("Voci per la sintesi vocale caricate:", window.speechSynthesis.getVoices());
+    };
+}
 // --- Event Listeners ---
 if(categorySelect) categorySelect.addEventListener('change', (e) => populateExerciseSelect(e.target.value));
 if(exerciseSelect) exerciseSelect.addEventListener('change', (e) => selectExercise(e.target.value, categorySelect.value));
