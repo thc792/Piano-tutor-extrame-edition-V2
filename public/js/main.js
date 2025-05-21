@@ -266,55 +266,22 @@ function resetNoteStatesForNewRepetition() {
     }
 }
 
+
 function highlightPendingNotes() {
     if (!currentExerciseData) return;
 
     let firstPendingNoteForDisplay = null;
-    let notesToMakeExpected = [];
+    let notesToMakeExpected = []; // Per gestire note simultanee su pentagrammi diversi
+
+    // Trova la/le prossima/e nota/e pending con lo startTick più basso
     let minPendingTick = Infinity;
+    const noteArrays = [currentExerciseData.notesTreble, currentExerciseData.notesBass, currentExerciseData.notes];
 
-    // 1. Controlla se ci sono ancora note 'expected' non risolte. Se sì, non fare nulla qui,
-    //    handleNoteOn gestirà il re-render o l'avanzamento quando saranno risolte.
-    let anyNoteStillExpected = false;
-    const noteArraysForCheck = [currentExerciseData.notesTreble, currentExerciseData.notesBass, currentExerciseData.notes];
-    noteArraysForCheck.forEach(notes => {
-        if (notes) {
-            notes.forEach(noteObj => {
-                if (noteObj && noteObj.status === 'expected') {
-                    anyNoteStillExpected = true;
-                }
-            });
-        }
-    });
-
-    if (anyNoteStillExpected && isPlaying && !isPaused) {
-        // Ci sono ancora note attese dal "momento" precedente, non evidenziare nuove note.
-        // handleNoteOn si occuperà di chiamare highlightPendingNotes quando queste saranno risolte.
-        // Potremmo voler aggiornare l'info display se la nota principale attesa cambia (es. in un accordo)
-        let currentExpectedForDisplay = null;
-         noteArraysForCheck.forEach(notes => {
-            if (notes && !currentExpectedForDisplay) {
-                currentExpectedForDisplay = notes.find(n => n && n.status === 'expected');
-            }
-        });
-        if(currentExpectedForDisplay) updateInfo(getNoteDescriptionForUser(currentExpectedForDisplay));
-        
-        // Ridisegniamo comunque per riflettere eventuali cambi di colore parziali (es. una nota di un accordo corretta)
-        if (scoreDiv && currentExerciseData) {
-            const savedScroll = scoreDiv.scrollTop;
-            renderExercise(scoreDivId, currentExerciseData);
-            scoreDiv.scrollTop = savedScroll;
-        }
-        return;
-    }
-
-
-    // 2. Se non ci sono più note 'expected', cerca le prossime 'pending'
-    const noteArraysForSearch = [currentExerciseData.notesTreble, currentExerciseData.notesBass, currentExerciseData.notes];
-    noteArraysForSearch.forEach(notes => {
+    noteArrays.forEach(notes => {
         if (notes && notes.length > 0) {
             notes.forEach(noteObj => {
                 if (noteObj && noteObj.status === 'pending' && !noteObj.keys[0].toLowerCase().startsWith('r/')) {
+                    // Assumiamo che vexflow_renderer abbia aggiunto noteObj.startTick
                     if (typeof noteObj.startTick === 'number' && noteObj.startTick < minPendingTick) {
                         minPendingTick = noteObj.startTick;
                     }
@@ -324,62 +291,59 @@ function highlightPendingNotes() {
     });
 
     if (minPendingTick !== Infinity) {
-        noteArraysForSearch.forEach(notes => {
+        noteArrays.forEach(notes => {
             if (notes && notes.length > 0) {
                 notes.forEach(noteObj => {
                     if (noteObj && noteObj.status === 'pending' && !noteObj.keys[0].toLowerCase().startsWith('r/') && noteObj.startTick === minPendingTick) {
                         notesToMakeExpected.push(noteObj);
-                        if (!firstPendingNoteForDisplay) firstPendingNoteForDisplay = noteObj;
+                        if (!firstPendingNoteForDisplay) {
+                            firstPendingNoteForDisplay = noteObj; // Prendi la prima per la UI testuale
+                        }
                     }
                 });
             }
         });
     }
 
-    // 3. Gestisci l'UI e lo stato
+
     if (isPlaying && !isPaused && notesToMakeExpected.length > 0) {
         notesToMakeExpected.forEach(noteObj => {
             noteObj.status = 'expected';
         });
         updateInfo(getNoteDescriptionForUser(firstPendingNoteForDisplay || notesToMakeExpected[0]));
-    } else if (!isPlaying) {
-        // Logica per mostrare la prima pending quando non si sta suonando (come prima)
-        let firstOverallPending = null;
-        if (minPendingTick !== Infinity && firstPendingNoteForDisplay) { // Usa i risultati della ricerca sopra
-            firstOverallPending = firstPendingNoteForDisplay;
-        } else { // Fallback se la ricerca non ha prodotto nulla (es. tutte le note suonate)
-            noteArraysForSearch.forEach(notes => {
-                if (notes && !firstOverallPending) {
-                    firstOverallPending = notes.find(n => n && n.status === 'pending' && n.expectedMidiValues && n.expectedMidiValues.length > 0);
-                }
-            });
+    } else if (!isPlaying) { // Se non stiamo suonando, mostra solo la prima pending
+        if (firstPendingNoteForDisplay) { // Potrebbe essere null se tutte le note sono state suonate
+             updateInfo(getNoteDescriptionForUser(firstPendingNoteForDisplay));
+        } else if (currentRepetition > targetRepetitions) {
+            updateInfo("Esercizio completato!");
+        } else if (totalNotesPerRepetition > 0 && correctNotesThisRepetition === totalNotesPerRepetition && currentRepetition <= targetRepetitions) {
+            updateInfo(`Rip. ${currentRepetition} completata. Inizia la prossima.`);
+        } else {
+            updateInfo("Seleziona o avvia esercizio.");
         }
-
-        if (firstOverallPending) {
-            updateInfo(getNoteDescriptionForUser(firstOverallPending));
-        } else if (currentExerciseData) { /* ... (logica per esercizio completato/pronto per prossima rip) ... */ }
     }
 
-    // 4. Se non ci sono più note da rendere 'expected' (tutte le note dell'esercizio sono 'correct' o 'incorrect') E stiamo suonando
-    if (isPlaying && !isPaused && notesToMakeExpected.length === 0 && minPendingTick === Infinity) {
-        // Tutte le note della ripetizione corrente sono state gestite.
-        finalizeAndStoreRepetitionData();
+
+    // Se non ci sono più note da rendere "expected" E stiamo suonando
+    if (isPlaying && !isPaused && notesToMakeExpected.length === 0) {
+        // Tutte le note della ripetizione corrente sono state suonate (o erano pause)
+        finalizeAndStoreRepetitionData(); // Finalizza la ripetizione corrente
         currentRepetition++;
         if (currentRepetition <= targetRepetitions) {
             updateInfo(`Inizio Rip. ${currentRepetition}/${targetRepetitions}`);
-            resetNoteStatesForNewRepetition(); // Questo chiama renderExercise
+            resetNoteStatesForNewRepetition();
             initializeNewRepetitionData(currentRepetition);
-            highlightPendingNotes(); // Chiama di nuovo per evidenziare la prima della nuova rip.
+            highlightPendingNotes(); // Evidenzia la prima nota della nuova ripetizione
         } else {
-            handleExerciseCompletion();
+            handleExerciseCompletion(); // Tutte le ripetizioni sono finite
         }
-    } else {
-        // Se abbiamo appena marcato nuove note come 'expected', o se non stiamo suonando, ridisegna.
-        if (scoreDiv && currentExerciseData) {
-            const savedScroll = scoreDiv.scrollTop;
-            renderExercise(scoreDivId, currentExerciseData);
-            scoreDiv.scrollTop = savedScroll;
-        }
+    }
+
+    // Ridisegna per mostrare gli aggiornamenti di stato (colori)
+    if (scoreDiv && currentExerciseData) {
+        const savedScroll = scoreDiv.scrollTop;
+        renderExercise(scoreDivId, currentExerciseData);
+        scoreDiv.scrollTop = savedScroll;
     }
 }
 

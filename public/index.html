@@ -6,12 +6,11 @@
     <title>Piano Tutor Extrame Edition V2</title>
     <link rel="stylesheet" href="style.css">
     <!-- VexFlow (locale) -->
-    <script src="publiclibs/vexflow.js"></script> <!-- Aggiorna se il percorso è diverso -->
+    <script src="publiclibs/vexflow.js"></script> <!-- Assumendo sia in public/publiclibs/ -->
 </head>
 <body>
     <header class="app-header">
         <h1>Piano Tutor Extrame V2</h1>
-        <!-- Note Svolazzanti -->
         <span class="floating-note note-1">♫</span>
         <span class="floating-note note-2">♪</span>
         <span class="floating-note note-3">♩</span>
@@ -70,7 +69,7 @@
                 <p>Nessun esercizio completato.</p>
             </div>
         </div>
-        <!-- AGGIUNTA PER AI: Contenitore per Feedback AI -->
+        <!-- NUOVO: Contenitore per Feedback AI -->
         <div class="status-column ai-feedback-container">
             <h4>Feedback dall'Esperto AI</h4>
             <div id="ai-feedback-content" class="ai-feedback-list">
@@ -91,16 +90,14 @@
         <p>Caricamento...</p>
     </div>
 
-    <!-- Script Esercizi -->
-    <!-- Assicurati che i percorsi qui siano relativi a public/index.html -->
+    <!-- Script Esercizi (IMPORTANTE: prima di main.js) -->
+    <!-- Assicurati che questi percorsi siano corretti rispetto a index.html -->
     <script src="js/exercises/giri_armonici.js"></script>
     <script src="js/exercises/accordi_rivolti.js"></script>
-    <!-- ... INCLUDI TUTTI I TUOI SCRIPT DEGLI ESERCIZI QUI ... -->
-    <script src="js/exercises/accompagnamenti.js"></script>
-    <!-- ... e così via per tutti gli altri ... -->
-     <script src="js/exercises/ritmica_avanzata.js"></script>
+    <script src="js/exercises/ritmica_avanzata.js"></script>
     <script src="js/exercises/scale.js"></script>
     <script src="js/exercises/scale_ottave.js"></script>
+    <script src="js/exercises/accompagnamenti.js"></script>
     <script src="js/exercises/accordi_complessi.js"></script>
     <script src="js/exercises/arpeggi.js"></script>
     <script src="js/exercises/indipendenza_mani.js"></script>
@@ -118,10 +115,9 @@
     <script src="js/exercises/licks_jazz.js"></script>
     <script src="js/exercises/teoria_riconoscimento.js"></script>
     <script src="js/exercises/voicing_jazz_blues.js"></script>
-
+    <!-- Aggiungi qui altri tuoi file di esercizi -->
 
     <script>
-        // Il tuo script per aggregare window.exerciseData
         window.exerciseData = {
             Giri_Armonici: typeof giriArmoniciExercises !== 'undefined' ? giriArmoniciExercises : [],
             Accordi_Rivolti: typeof accordiRivoltiExercises !== 'undefined' ? accordiRivoltiExercises : [],
@@ -149,6 +145,11 @@
         };
     </script>
 
+    <!-- I tuoi script principali -->
+    <!-- Assicurati che questi percorsi siano corretti rispetto a index.html -->
     <script type="module" src="js/main.js"></script>
+    <!-- metronome.js e midi_handler.js sono importati da main.js, quindi non serve includerli qui se sono moduli ES6 -->
+    <!-- vexflow_renderer.js è importato da main.js -->
+
 </body>
 </html>
